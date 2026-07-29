@@ -1,0 +1,17 @@
+{
+  "name": "punchbuddy-streamdeck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stream-Deck-Plugin für PunchBuddy (lokaler Unix-Socket, kein Netzwerk)",
+  "scripts": {
+    "build": "esbuild src/plugin.js --bundle --platform=node --target=node20 --outfile=com.punchbuddy.control.sdPlugin/bin/plugin.js",
+    "icons": "python3 make_icons.py",
+    "pack": "npm run icons && npm run build && /bin/sh pack.sh"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  }
+}

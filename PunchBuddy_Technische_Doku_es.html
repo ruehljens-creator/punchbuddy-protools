@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PunchBuddy – Documentación técnica</title>
+<style>
+  :root {
+    --bg:        #0f1117;
+    --bg2:       #161b25;
+    --bg3:       #1e2535;
+    --border:    #2a3347;
+    --accent:    #3b82f6;
+    --accent2:   #60a5fa;
+    --text:      #e2e8f0;
+    --muted:     #94a3b8;
+    --code-bg:   #0d1117;
+    --code-text: #79c0ff;
+    --tag-rec:   #ef4444;
+    --tag-play:  #22c55e;
+    --tag-exp:   #f59e0b;
+    --tag-voc:   #a855f7;
+    --tag-dev:   #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  nav {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 28px 0 40px;
+  }
+  nav .logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  nav .logo h1 { font-size: 16px; font-weight: 700; letter-spacing: .02em; color: var(--text); }
+  nav .logo p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  nav .logo .meta { font-size: 10px; color: #4a5568; margin-top: 8px; line-height: 1.5; }
+  nav ul { list-style: none; }
+  nav ul li a {
+    display: block;
+    padding: 5px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav ul li a:hover   { color: var(--text); background: var(--bg3); }
+  nav ul li a.active  { color: var(--accent2); border-left-color: var(--accent); background: rgba(59,130,246,.08); }
+  nav .nav-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 16px 20px 6px;
+  }
+  nav ul li a.sub { padding-left: 34px; font-size: 12.5px; }
+
+  /* ── Content ── */
+  main {
+    padding: 48px 56px 80px;
+    max-width: 960px;
+  }
+  section { margin-bottom: 72px; }
+  h2 {
+    font-size: 24px; font-weight: 700; letter-spacing: -.01em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px; margin-bottom: 24px;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 17px; font-weight: 600; margin: 32px 0 12px;
+    color: var(--accent2);
+  }
+  h4 {
+    font-size: 14px; font-weight: 600; margin: 20px 0 8px;
+    color: var(--text);
+  }
+  p  { margin-bottom: 14px; color: var(--text); }
+  p:last-child { margin-bottom: 0; }
+  a  { color: var(--accent2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Intro / Hero ── */
+  .hero {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px 36px;
+    margin-bottom: 48px;
+  }
+  .hero h2 { border: none; padding: 0; margin-bottom: 8px; font-size: 28px; }
+  .hero p  { color: var(--muted); font-size: 15px; }
+
+  /* ── Badge-Tags ── */
+  .badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    border-radius: 4px;
+    padding: 2px 7px; margin-right: 6px;
+    vertical-align: middle;
+  }
+  .badge-rec  { background: rgba(239,68,68,.15);  color: var(--tag-rec);  }
+  .badge-play { background: rgba(34,197,94,.15);  color: var(--tag-play); }
+  .badge-exp  { background: rgba(245,158,11,.15); color: var(--tag-exp);  }
+  .badge-voc  { background: rgba(168,85,247,.15); color: var(--tag-voc);  }
+  .badge-dev  { background: rgba(59,130,246,.15); color: var(--tag-dev);  }
+
+  /* ── Code ── */
+  code {
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    color: var(--code-text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--code-text);
+  }
+  pre .cm  { color: #8b949e; }   /* comment  */
+  pre .kw  { color: #ff7b72; }   /* keyword  */
+  pre .fn  { color: #d2a8ff; }   /* function */
+  pre .st  { color: #a5d6ff; }   /* string   */
+  pre .nu  { color: #79c0ff; }   /* number   */
+
+  /* ── Info / Warning / Note boxes ── */
+  .box {
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+    line-height: 1.6;
+    border-left: 3px solid;
+  }
+  .box.note    { background: rgba(59,130,246,.08);  border-color: var(--accent);  color: var(--text); }
+  .box.warn    { background: rgba(245,158,11,.08);  border-color: var(--tag-exp); color: var(--text); }
+  .box.danger  { background: rgba(239,68,68,.08);   border-color: var(--tag-rec); color: var(--text); }
+  .box.tip     { background: rgba(34,197,94,.08);   border-color: var(--tag-play);color: var(--text); }
+  .box strong  { font-weight: 700; }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: var(--bg3);
+    text-align: left;
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 16px 0;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px 0;
+  }
+  .flow-step:not(:last-child) {
+    border-bottom: 1px dashed var(--border);
+  }
+  .flow-num {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .flow-content strong { font-size: 14px; display: block; margin-bottom: 2px; }
+  .flow-content span   { font-size: 13px; color: var(--muted); }
+
+  /* ── Module grid ── */
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .module-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .module-card h4 { margin: 0 0 6px; font-size: 13.5px; color: var(--accent2); }
+  .module-card p  { font-size: 12.5px; color: var(--muted); margin: 0; }
+  .module-card code { background: transparent; border: none; padding: 0; color: var(--code-text); }
+
+  /* ── Key-binding chips ── */
+  .keys { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  kbd {
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text);
+    box-shadow: 0 1px 0 var(--border);
+  }
+
+  /* ── Endpoint list ── */
+  .endpoint {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .endpoint:last-child { border-bottom: none; }
+  .ep-method { font-weight: 700; color: var(--tag-play); font-size: 12px; width: 40px; flex-shrink: 0; }
+  .ep-path   { font-family: monospace; color: var(--code-text); min-width: 200px; }
+  .ep-desc   { color: var(--muted); }
+
+  /* ── Code-Umfang Balken ── */
+  .loc-bars { margin: 12px 0; display: flex; flex-direction: column; gap: 7px; }
+  .loc-row  { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+  .loc-name { flex: 0 0 230px; }
+  .loc-name code { background: transparent; border: none; padding: 0; color: var(--code-text); }
+  .loc-bar  { flex: 1; height: 14px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .loc-fill { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; }
+  .loc-val  { flex: 0 0 56px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-family: monospace; font-size: 12.5px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+<!-- ════════════════════════════ SIDEBAR ════════════════════════════ -->
+<nav id="sidebar">
+  <div class="logo">
+    <h1>⏺ PunchBuddy</h1>
+    <p>Documentación técnica</p>
+  </div>
+  <ul>
+    <li><div class="nav-section">Ajustes</div></li>
+    <li><a href="#settings-tracks">Pistas (Perfil A / B)</a></li>
+    <li><a href="#settings-export">Exportación</a></li>
+    <li><a href="#settings-interplay">Interplay / MediaCentral</a></li>
+    <li><a href="#settings-loudness">Normalización de sonoridad</a></li>
+    <li><a href="#settings-play">Modo Play</a></li>
+    <li><a href="#settings-vocaster">Vocaster / Stream Deck</a></li>
+    <li><a href="#settings-webtrigger">Webtrigger / API</a></li>
+    <li><a href="#settings-presets">Presets</a></li>
+
+    <li><div class="nav-section">Procesos técnicos</div></li>
+    <li><a href="#flow-startup">Arranque</a></li>
+    <li><a href="#flow-punchin">Punch-In (grabación)</a></li>
+    <li><a href="#flow-play">Play &amp; Play Custom</a></li>
+    <li><a href="#flow-stop">Stop</a></li>
+    <li><a href="#flow-move">Mover audio</a></li>
+    <li><a href="#flow-export">Flujo de exportación</a></li>
+    <li><a href="#flow-interplay-export">Exportación a Interplay</a></li>
+    <li><a href="#flow-interplay-import">Importación desde Interplay</a></li>
+    <li><a href="#flow-loudness">Normalización de sonoridad</a></li>
+    <li><a href="#flow-vocaster">Vocaster USB</a></li>
+
+    <li><div class="nav-section">Developer Deep Dive</div></li>
+    <li><a href="#dev-structure">Estructura de archivos</a></li>
+    <li><a href="#dev-modules">Módulos &amp; dependencias</a></li>
+    <li><a href="#dev-threading">Modelo de threading</a></li>
+    <li><a href="#dev-ptsl">PTSL / gRPC</a></li>
+    <li><a href="#dev-appkit">AppKit &amp; Main-Thread</a></li>
+    <li><a href="#dev-cgevent">CGEvent (teclado)</a></li>
+    <li><a href="#dev-applescript">Automatización de UI con AppleScript</a></li>
+    <li><a href="#dev-kqueue">kqueue (monitorización de archivos)</a></li>
+    <li><a href="#dev-http">API de control (HTTP + Socket)</a></li>
+    <li><a href="#dev-streamdeck">Integración con Stream Deck</a></li>
+    <li><a href="#dev-settings">Sistema de ajustes</a></li>
+    <li><a href="#dev-crash">Diagnóstico de fallos</a></li>
+    <li><a href="#dev-loc">Volumen de código</a></li>
+  </ul>
+</nav>
+
+<!-- ════════════════════════════ MAIN ════════════════════════════ -->
+<main>
+
+  <div class="hero">
+    <h2>PunchBuddy</h2>
+    <p>App de automatización para Pro Tools Punch-In, transporte, exportación y Avid Interplay.<br>
+       App de barra de menús (macOS) con integración de Stream Deck, control de Vocaster y normalización de sonoridad según EBU R128.</p>
+    <p style="margin-top:16px; font-size:11px; color:#4a5568;">v 1.3 &nbsp;·&nbsp; Creado por Jens Rühl &nbsp;·&nbsp; 06.2026</p>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ABSCHNITT 1 – EINSTELLUNGEN
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="settings">
+    <h2>1 · Menús de ajustes</h2>
+    <p>Todos los ajustes se guardan en <code>~/.punchbuddy/settings.json</code> y se cargan automáticamente en el siguiente arranque. La ventana se abre a través de <strong>Barra de menús → Ajustes</strong>. Los cambios solo se aplican tras hacer clic en <em>Guardar</em>.</p>
+
+    <!-- ── Spuren ── -->
+    <h3 id="settings-tracks">Pestaña: Pistas (Perfil A &amp; B)</h3>
+    <p>PunchBuddy conoce dos perfiles de pistas independientes. El Perfil A se activa mediante el disparador principal, y el Perfil B mediante el segundo disparador (menú o webtrigger <code>/trigger2</code>). Esto permite, por ejemplo, alternar rápidamente entre dos configuraciones de grabación distintas, como Locutor 1 vs. Locutor 2.</p>
+
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Pistas de grabación A</strong></td><td><code>tracks</code></td><td>Nombres de pista (exactamente como en la sesión de PT) que se activan para grabación (record-enabled) con el disparador del Perfil A. Lista separada por comas en la interfaz.</td></tr>
+      <tr><td><strong>Pistas de monitor A</strong></td><td><code>monitor_tracks</code></td><td>Pistas que se conmutan a entrada (monitor de entrada) con el disparador de Play. No durante el Punch-In: de eso se encarga el propio Pro Tools.</td></tr>
+      <tr><td><strong>Pistas de grabación B</strong></td><td><code>tracks_b</code></td><td>Como las pistas de grabación A, pero para el Perfil B.</td></tr>
+      <tr><td><strong>Pistas de monitor B</strong></td><td><code>monitor_tracks_b</code></td><td>Equivalente de monitor para el Perfil B.</td></tr>
+      <tr><td><strong>Pistas de exportación</strong></td><td><code>export_tracks</code></td><td>Pistas que se incluyen en la exportación con Consolidate. Independiente de los perfiles de grabación.</td></tr>
+      <tr><td><strong>Pista de vídeo</strong></td><td><code>video_track</code></td><td>Nombre de la pista de vídeo (alternativa cuando falla la detección automática vía PTSL). Se necesita para la selección de la línea de tiempo durante la exportación.</td></tr>
+      <tr><td><strong>Timecode de inicio</strong></td><td><code>export_start_tc</code></td><td>Timecode al que se sitúa el cursor de PT con <em>Goto Start</em> (webtrigger <code>/start</code>). Formato: <code>HH:MM:SS:FF</code>.</td></tr>
+      <tr><td><strong>Extend Count</strong></td><td><code>extend_count</code></td><td>Valor heredado (legacy) para el número de pistas por debajo de la pista de vídeo. Hoy la selección se amplía vía PTSL (<code>extend_selection_to_target_tracks</code>) a las pistas de exportación concretas; este contador solo tiene ya un valor histórico (predeterminado: 7).</td></tr>
+    </table>
+
+    <div class="box note">
+      <strong>Coincidencia de nombres de pista:</strong> PunchBuddy compara los nombres introducidos de forma exacta (distingue mayúsculas y minúsculas) con los nombres de pista de la caché de pistas de PTSL. Errores tipográficos o una escritura distinta hacen que la pista no se encuentre; el registro muestra qué pistas faltan.
+    </div>
+
+    <!-- ── Export ── -->
+    <h3 id="settings-export">Pestaña: Exportación</h3>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Exportación WAV activada</strong></td><td><code>wav_export_enabled</code></td><td>Activa el paso Consolidate+WAV en el flujo de exportación completo.</td></tr>
+      <tr><td><strong>Exportación AAF (Embedded)</strong></td><td><code>aaf_export_enabled</code></td><td>Activa la exportación AAF embebida (los medios se incrustan en el archivo AAF).</td></tr>
+      <tr><td><strong>Ruta de exportación WAV</strong></td><td><code>wav_export_path</code></td><td>Ruta absoluta opcional para los archivos WAV. Vacío = predeterminado <code>&lt;Session&gt;/export/</code>.</td></tr>
+      <tr><td><strong>Ruta AAF Embedded</strong></td><td><code>aaf_embedded_export_path</code></td><td>Ruta opcional para archivos AAF embebidos.</td></tr>
+      <tr><td><strong>Ruta AAF Reference</strong></td><td><code>aaf_reference_export_path</code></td><td>Ruta opcional para archivos AAF referenciados (los medios se ubican externamente).</td></tr>
+      <tr><td><strong>Profundidad de bits AAF</strong></td><td><code>aaf_reference_bit_depth</code></td><td>Profundidad de bits para la exportación AAF Reference (predeterminado: 24 bit).</td></tr>
+      <tr><td><strong>AAF Handle (ms)</strong></td><td><code>aaf_reference_handle_ms</code></td><td>Longitud del handle en milisegundos para AAF Reference (predeterminado: 1000 ms).</td></tr>
+      <tr><td><strong>Palabras clave de error</strong></td><td><code>export_error_keywords</code></td><td>Palabras separadas por comas que, en los cuadros de diálogo de PT, se interpretan como estado de error.</td></tr>
+      <tr><td><strong>Palabras clave de éxito</strong></td><td><code>export_success_keywords</code></td><td>Palabras separadas por comas que se interpretan como éxito.</td></tr>
+    </table>
+
+    <!-- ── Interplay ── -->
+    <h3 id="settings-interplay">Pestaña: Interplay / MediaCentral</h3>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Exportación a Interplay activada</strong></td><td><code>interplay_enabled</code></td><td>Activa el paso de exportación a Interplay en el flujo de exportación completo.</td></tr>
+      <tr><td><strong>Workspace</strong></td><td><code>interplay_workspace</code></td><td>Nombre visible del workspace de destino en Interplay Access (p. ej. <code>001-aktuelles [fad-nexis]</code>). Se muestra al navegar por el árbol de workspaces.</td></tr>
+      <tr><td><strong>Pasos de workspace</strong></td><td><code>interplay_workspace_steps</code></td><td>Número de pulsaciones de la tecla Tab para navegar en el árbol de workspaces de Interplay hasta la carpeta de destino (predeterminado: 17). Debe ajustarse si cambia la estructura de carpetas.</td></tr>
+      <tr><td><strong>Renombrado activado</strong></td><td><code>interplay_rename_enabled</code></td><td>Tras la exportación, la secuencia se renombra en Interplay Access según lo configurado.</td></tr>
+      <tr><td><strong>Trim Start</strong></td><td><code>interplay_rename_trim_start</code></td><td>Número de caracteres que se recortan del comienzo del nombre original de la secuencia.</td></tr>
+      <tr><td><strong>Trim End</strong></td><td><code>interplay_rename_trim_end</code></td><td>Número de caracteres que se recortan del final.</td></tr>
+      <tr><td><strong>Prefijo</strong></td><td><code>interplay_rename_prefix</code></td><td>Texto que se antepone al nombre acortado.</td></tr>
+      <tr><td><strong>Sufijo</strong></td><td><code>interplay_rename_suffix</code></td><td>Texto que se añade al final del nombre acortado.</td></tr>
+      <tr><td><strong>Cerrar sesión (importación)</strong></td><td><code>import_close_session</code></td><td>Si la sesión actual de PT se cierra automáticamente antes de la importación desde Interplay.</td></tr>
+    </table>
+
+    <div class="box warn">
+      <strong>Pasos de workspace:</strong> La navegación con Tab en el árbol de workspaces de Interplay depende de la profundidad de las carpetas. Si la estructura de directorios en Interplay cambia, este valor debe ajustarse manualmente. En el registro se ve cuántas pulsaciones de Tab se enviaron.
+    </div>
+
+    <!-- ── Loudness ── -->
+    <h3 id="settings-loudness">Pestaña: Normalización de sonoridad</h3>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Normalización activa</strong></td><td><code>loudness_enabled</code></td><td>Activa el paso de normalización EBU R128. Requiere <code>pyloudnorm</code>, <code>soundfile</code> y <code>numpy</code>.</td></tr>
+      <tr><td><strong>Pistas de sonoridad</strong></td><td><code>loudness_tracks</code></td><td>Qué archivos WAV consolidados se normalizan (normalmente solo <code>ST</code>, la mezcla estéreo).</td></tr>
+      <tr><td><strong>LUFS objetivo</strong></td><td><code>target_lufs</code></td><td>Sonoridad objetivo en LUFS según EBU R128 (predeterminado: −23,0 LUFS para broadcast).</td></tr>
+      <tr><td><strong>True Peak máx.</strong></td><td><code>max_truepeak</code></td><td>Límite superior de True Peak tras la corrección de ganancia (predeterminado: −3,0 dBTP). Protege frente a la saturación al codificar.</td></tr>
+    </table>
+
+    <!-- ── Play ── -->
+    <h3 id="settings-play">Pestaña: Modo Play / Monitor</h3>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Pistas de monitor en Play</strong></td><td><code>play_monitor_tracks</code></td><td>Pistas fijas que se conmutan a monitor de entrada al iniciar Play. Vacío = se toman las pistas seleccionadas en PT.</td></tr>
+      <tr><td><strong>Play Custom – Canal 1</strong></td><td><code>play_custom_ch1_track</code></td><td>Nombre de pista para el Canal 1 (típico: escucha/KH2). El estado de mute al iniciar y al detener se configura por separado.</td></tr>
+      <tr><td><strong>Mute al iniciar (Ch1)</strong></td><td><code>play_custom_ch1_mute_start</code></td><td>Si el Canal 1 se silencia al iniciar Play Custom (predeterminado: <code>true</code>, KH2 se silencia).</td></tr>
+      <tr><td><strong>Mute al detener (Ch1)</strong></td><td><code>play_custom_ch1_mute_stop</code></td><td>Si el Canal 1 se vuelve a silenciar/desmutear al detener.</td></tr>
+      <tr><td><strong>Play Custom – Canal 2</strong></td><td><code>play_custom_ch2_track</code></td><td>Nombre de pista para el Canal 2 (típico: escucha de estudio <code>ST Abh</code>).</td></tr>
+      <tr><td><strong>Mute al iniciar (Ch2)</strong></td><td><code>play_custom_ch2_mute_start</code></td><td>Si el Canal 2 se silencia al iniciar (predeterminado: <code>false</code>, la escucha permanece activa).</td></tr>
+      <tr><td><strong>Mute al detener (Ch2)</strong></td><td><code>play_custom_ch2_mute_stop</code></td><td>Si el Canal 2 se silencia tras detener (predeterminado: <code>true</code>).</td></tr>
+    </table>
+
+    <p style="margin-top:18px;">En la misma pestaña (<em>Monitoring</em>) se encuentra también la configuración de <strong>Mover audio (Track Move)</strong>:</p>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Pistas de origen</strong></td><td><code>move_audio_source_tracks</code></td><td>Pistas cuyo material completo se mueve (separadas por comas, normalmente 2 pistas).</td></tr>
+      <tr><td><strong>Pistas de destino</strong></td><td><code>move_audio_target_tracks</code></td><td>Pistas de destino sobre las que se coloca el material en la misma posición temporal (separadas por comas). Deben estar en el mismo orden vertical que las pistas de origen.</td></tr>
+    </table>
+
+    <!-- ── Vocaster ── -->
+    <h3 id="settings-vocaster">Pestaña: Vocaster / Stream Deck</h3>
+    <p>Esta pestaña está <strong>siempre visible</strong>. Las opciones de Vocaster solo aparecen cuando hay un Focusrite Vocaster One o Two conectado por USB; la sección de Stream Deck es independiente de ello y está siempre presente.</p>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>48V al iniciar</strong></td><td><code>vocaster_phantom_on_start</code></td><td>Activa automáticamente la alimentación fantasma de 48V en cuanto PunchBuddy arranca y se detecta un Vocaster.</td></tr>
+      <tr><td><strong>Aplicar routing al iniciar</strong></td><td><code>vocaster_apply_routing_on_start</code></td><td>Escribe de vuelta al dispositivo, al arrancar, el último routing de audio MUX guardado. Hace innecesaria la app Vocaster Hub.</td></tr>
+      <tr><td><strong>Guardar routing (menú)</strong></td><td><code>vocaster_routing.json</code></td><td>Lee el routing actual del dispositivo por USB y lo guarda en <code>~/.punchbuddy/vocaster_routing.json</code>. Se restaura en el siguiente arranque o pulsando un botón.</td></tr>
+    </table>
+
+    <h4>Sección de Stream Deck</h4>
+    <p>PunchBuddy trae <strong>consigo directamente</strong> el plugin de Stream Deck y los lanzadores de botones (empaquetados dentro de la app). Tres botones:</p>
+    <table>
+      <tr><th>Botón</th><th>Efecto</th></tr>
+      <tr><td><strong>Instalar plugin</strong></td><td>Abre el <code>com.punchbuddy.control.streamDeckPlugin</code> incluido; Stream Deck muestra su propio diálogo de instalación. Después queda disponible la acción <em>«Comando de PunchBuddy»</em> con un desplegable de comandos.</td></tr>
+      <tr><td><strong>Guardar plugin (Descargas)</strong></td><td>Copia el archivo del plugin a <code>~/Downloads</code> y lo muestra en el Finder (para compartir/instalar manualmente).</td></tr>
+      <tr><td><strong>Crear lanzadores de botones</strong></td><td>Genera, por cada comando, una minúscula <code>.app</code> en <code>~/Applications/PunchBuddy&nbsp;Launchers</code> que envía el comando mediante <code>nc&nbsp;-U</code> al Unix-Socket <strong>configurado</strong>. Se puede usar en Stream Deck con la acción integrada <em>«Sistema → Abrir»</em>, sin instalar el plugin.</td></tr>
+    </table>
+    <div class="box tip">
+      <strong>¿Por qué dos vías?</strong> El <strong>plugin</strong> (una acción, comando por desplegable) es cómodo, pero requiere Stream Deck&nbsp;≥&nbsp;6.5. Los <strong>lanzadores</strong> funcionan con cualquier versión de Stream Deck sin instalar plugin alguno. Ambos apuntan al mismo Socket local, completamente sin red.
+    </div>
+
+    <!-- ── Webtrigger ── -->
+    <h3 id="settings-webtrigger">Pestaña: Webtrigger</h3>
+    <p>Todas las funciones activables pasan por <strong>una API de comandos central</strong> (<code>command_dispatch</code>). Esta se atiende mediante <strong>dos transportes</strong>:</p>
+    <ul>
+      <li><strong>Servidor HTTP</strong> (<code>ThreadingMixIn + TCPServer</code>, puerto predeterminado 8899): para Stream Deck, Companion o cualquier cliente HTTP.</li>
+      <li><strong>Unix-Domain-Socket</strong> (<code>/tmp/punchbuddy.sock</code>): <strong>completamente sin red</strong> (sin TCP/Loopback) y, por tanto, en principio no detectable por filtros de red como Microsoft Defender. Protegido mediante permisos de archivo <code>0600</code> (solo el usuario que ha iniciado sesión).</li>
+    </ul>
+    <table>
+      <tr><th>Campo</th><th>Clave de ajuste</th><th>Descripción</th></tr>
+      <tr><td><strong>Puerto</strong></td><td><code>http_port</code></td><td>Puerto TCP del servidor HTTP (predeterminado: <code>8899</code>). Los cambios solo se aplican tras reiniciar. Si el puerto está ocupado, se elige automáticamente un puerto libre.</td></tr>
+      <tr><td><strong>Bind-Host</strong></td><td><code>http_bind_host</code></td><td><code>127.0.0.1</code> = solo local (seguro, no se necesita token). Cualquier otra IP = accesible en la red → se genera un token automáticamente.</td></tr>
+      <tr><td><strong>Token</strong></td><td><code>webtrigger_token</code></td><td>Token de autenticación opcional (solo HTTP). En un bind de red se genera automáticamente. Debe enviarse como <code>?token=…</code> o como cabecera <code>X-Auth-Token</code>.</td></tr>
+      <tr><td><strong>Unix-Socket activo</strong></td><td><code>unix_socket_enabled</code></td><td>Activa/desactiva el Socket sin red (predeterminado: activado).</td></tr>
+      <tr><td><strong>Ruta del Socket</strong></td><td><code>unix_socket_path</code></td><td>Ruta del Unix-Socket (predeterminado: <code>/tmp/punchbuddy.sock</code>). Protocolo: una línea <code>&lt;befehl&gt; [arg]</code>, respuesta <code>OK …</code> / <code>ERR …</code>. Prueba: <code>printf 'play' | nc -U /tmp/punchbuddy.sock</code>.</td></tr>
+    </table>
+
+    <h4>Todos los endpoints HTTP</h4>
+    <div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/trigger</span><span class="ep-desc">Iniciar Punch-In / grabación (Perfil A)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/trigger2</span><span class="ep-desc">Iniciar Punch-In / grabación (Perfil B)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/play</span><span class="ep-desc">Alternar Play/Stop con monitor de entrada</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/play_custom</span><span class="ep-desc">Alternar Play/Stop con los estados de mute configurados</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/start</span><span class="ep-desc">Situar el cursor de PT en el timecode de inicio</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/move_audio</span><span class="ep-desc">Mover audio de las pistas de origen a las de destino (Track Move)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/export_wav</span><span class="ep-desc">Iniciar exportación WAV independiente</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/export_aaf</span><span class="ep-desc">Exportación AAF Embedded</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/export_aaf_reference</span><span class="ep-desc">Exportación AAF Reference</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/export_interplay</span><span class="ep-desc">Iniciar exportación a Interplay</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/import</span><span class="ep-desc">Iniciar importación desde Interplay</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/preset/{1-8}</span><span class="ep-desc">Cargar preset 1–8 (pistas + todos los ajustes)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/vocaster/autogain/host</span><span class="ep-desc">Iniciar Autogain para la entrada Host</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/vocaster/autogain/guest</span><span class="ep-desc">Autogain para la entrada Guest (solo Vocaster Two)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/vocaster/phantom/on</span><span class="ep-desc">Activar 48V</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/vocaster/phantom/off</span><span class="ep-desc">Desactivar 48V</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/command/{name}</span><span class="ep-desc">Genérico: cualquier comando por nombre (p. ej. <code>/command/play</code>, <code>/command/preset/3</code>)</span></div>
+      <div class="endpoint"><span class="ep-method">GET</span><span class="ep-path">/commands</span><span class="ep-desc">Lista de todos los nombres de comando disponibles (introspección)</span></div>
+    </div>
+    <p style="font-size:12px; color:#4a5568;">Los mismos comandos funcionan 1:1 a través del Unix-Socket: <code>printf 'play' | nc -U /tmp/punchbuddy.sock</code>, <code>printf 'preset 3' | …</code>, <code>printf 'list' | …</code>.</p>
+
+    <!-- ── Presets ── -->
+    <h3 id="settings-presets">Pestaña: Presets</h3>
+    <p>Existen 8 presets, cada uno de los cuales guarda un estado de trabajo completo. Un preset puede cargarse manualmente desde la pestaña o mediante webtrigger <code>/preset/1</code> hasta <code>/preset/8</code>.</p>
+    <p>Cada entrada de preset guarda: pistas de grabación A/B, pistas de monitor A/B, pistas de exportación, pistas de monitor en Play, pistas de sonoridad, así como todos los ajustes booleanos/de texto/enteros/decimales como <code>loudness_enabled</code>, <code>interplay_enabled</code>, <code>target_lufs</code>, etc.</p>
+    <div class="box tip">
+      <strong>Consejo:</strong> Los presets pueden cargarse mediante Companion o Stream Deck. Así se pueden alternar por completo distintos formatos de producción (informativo, revista, …) con una sola pulsación.
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ABSCHNITT 2 – TECHNISCHE ABLÄUFE
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="flows">
+    <h2>2 · Procesos técnicos</h2>
+
+    <!-- ── Startup ── -->
+    <h3 id="flow-startup">Arranque</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Definir el nombre del bundle y del proceso</strong>
+          <span>Antes de importar rumps/AppKit se escribe <code>CFBundleName = 'PunchBuddy'</code> en el InfoDictionary y se llama a <code>NSProcessInfo.setProcessName_</code>, para que en el Dock y el Monitor de Actividad no aparezca «Python».</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Inicializar el registro (logging) y el diagnóstico de fallos</strong>
+          <span><code>punchbuddy/log.py</code> crea <code>~/.punchbuddy/PunchBuddy.log</code>, abre <code>PunchBuddy_crash.log</code> para <code>faulthandler</code> (SIGSEGV/SIGABRT) e instala <code>threading.excepthook</code> / <code>sys.excepthook</code>.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Cargar ajustes y migración</strong>
+          <span><code>~/.punchbuddy/settings.json</code> se combina mediante Deep-Merge con los valores predeterminados. Si existe una carpeta antigua <code>~/.autopunchin/</code>, se migra una única vez.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Arranca el bucle de la app rumps</strong>
+          <span>Se instancia la app de barra de menús (<code>PunchBuddyApp</code>). El servidor HTTP, el KeepAlive de PTSL y el temporizador de Vocaster se inician como threads/timers daemon.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <strong>Comprobación de Pre-Roll al arrancar (thread en segundo plano, 2s de retardo)</strong>
+          <span>El Pre-Roll se pone en OFF (PTSL) y se llena la caché de pistas. Ambas cosas ocurren en segundo plano para que el arranque no se bloquee.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-content">
+          <strong>Inicialización de Vocaster</strong>
+          <span>Detección de dispositivos USB vía <code>libusb</code>. Si se encuentra un Vocaster: 48V activado (opcional) + aplicar el routing guardado (opcional) + añadir entradas de menú.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Punch-In ── -->
+    <h3 id="flow-punchin">Punch-In (grabación) <span class="badge badge-rec">Record</span></h3>
+    <p>Se activa mediante menú, Stream Deck (<code>/trigger</code> o <code>/trigger2</code>) o webtrigger. Se ejecuta por completo en un thread daemon para que la interfaz siga respondiendo.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Guard: ¿ya está en marcha?</strong>
+          <span><code>state.running_lock</code> impide grabaciones en paralelo. Si ya hay una en curso, el disparador se ignora.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Consultar la caché de pistas (PTSL)</strong>
+          <span>Nombres de pista de la caché de sesión (cargada una única vez al arrancar). Si está vacía: nueva llamada PTSL <code>track_list()</code>. Las pistas de la lista de ajustes se cotejan contra la caché.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Pre-Roll ON (PTSL, 3 intentos)</strong>
+          <span><code>ensure_preroll_on()</code> lee el estado actual del Pre-Roll vía <code>GetTimelineSelection</code> y lo fija con <code>SetTimelineSelection(pre_roll_enabled=TB_True)</code>. Alternativa a Cmd+K (CGEvent) si PTSL falla.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Record-Enable (PTSL, 3 intentos, 15s de timeout cada uno)</strong>
+          <span><code>set_track_record_enable_state(tracks, True)</code>. Timeout de 15s por la posible carga de escritura de NEXIS. En caso de error: aviso en el registro; el proceso continúa igualmente.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <strong>Armar transporte + Play (PTSL)</strong>
+          <span>Primero se comprueba si el transporte ya está armado (<code>transport_armed()</code>). Si no: <code>toggle_record_enable()</code> → <code>toggle_play_state()</code>. Pro Tools inicia la grabación.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-content">
+          <strong>Esperar hasta que el transporte esté en marcha (máx. 5s)</strong>
+          <span>Sondeo de <code>transport_state()</code> cada 50ms hasta <code>TS_TransportRecording</code> o <code>TS_TransportPlaying</code>.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">7</div>
+        <div class="flow-content">
+          <strong>Esperar hasta que el transporte se detenga (máx. 10 minutos)</strong>
+          <span>Sondeo cada 300ms. En <code>TS_TransportIsStopping</code> (PT escribe en NEXIS) se conmuta a un intervalo de 3s para reducir la carga de PTSL. Tras 10 timeouts consecutivos: reinicio del motor.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">8</div>
+        <div class="flow-content">
+          <strong>Desarmar transporte + Pre-Roll OFF</strong>
+          <span>El armado del transporte solo se desactiva si lo activó PunchBuddy. El Pre-Roll se restablece con <code>restore_preroll()</code>.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Play ── -->
+    <h3 id="flow-play">Play &amp; Play Custom <span class="badge badge-play">Play</span></h3>
+    <p><strong>Play (monitor de entrada)</strong> lee el estado actual del transporte. Si PT está en marcha → ruta de Stop. Si PT está detenido → ruta de inicio: activar el monitor de entrada de las pistas configuradas (o seleccionadas) y luego iniciar la reproducción. Al detener, las pistas de monitor se vuelven a desactivar.</p>
+    <p><strong>Play Custom</strong> funciona como Play, pero antes de iniciar establece estados de mute definidos en dos pistas configurables (típico: silenciar KH2, dejar activa la escucha de estudio). Al detener, estos mutes se restablecen.</p>
+
+    <!-- ── Stop ── -->
+    <h3 id="flow-stop">Stop <span class="badge badge-play">Transport</span></h3>
+    <p>El comando Stop está desacoplado explícitamente de <code>state.running</code>: funciona también durante una grabación en curso. Utiliza su propio <code>_stop_lock</code> (impide un doble Stop, pero no bloquea un Punch-In en paralelo). <code>toggle_play_state()</code> equivale a la barra espaciadora en PT.</p>
+
+    <!-- ── Audio verschieben ── -->
+    <h3 id="flow-move">Mover audio (Track Move) <span class="badge badge-play">Edit</span></h3>
+    <p>Mueve todo el material de las pistas de origen a las pistas de destino —en la misma posición temporal— completamente vía PTSL <code>cut</code>/<code>paste</code>. Se activa mediante el menú «Mover audio» o el webtrigger <code>/move_audio</code> (<code>run_move_audio()</code> en <a href="punchbuddy/transport.py">transport.py</a>).</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Activar el contexto de Edit-Selection</strong>
+          <span>Mediante <code>_protools_selection_context</code>: seleccionar la herramienta Selector y activar <em>«Link Timeline and Edit Selection»</em> + <em>«Link Track and Edit Selection»</em>. Solo así <code>select_tracks_by_name</code> / <code>set_timeline_selection</code> controlan la Edit-Selection sobre la que operan <code>cut</code>/<code>paste</code>. Los ajustes originales se restauran después.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Mover por parejas, pista a pista (src[i] → tgt[i])</strong>
+          <span>La asignación se hace explícitamente por índice, no mediante el mapeo top→bottom de PT. Cada pista se mueve por separado; antes de cada pista de origen la selección se pone a longitud cero, para que las pistas vacías (selección obsoleta) se omitan correctamente.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Cortar basándose en clips (PTSL)</strong>
+          <span><code>select_all_clips_on_track(src[i])</code> genera una Edit-Selection <em>precisa a nivel de clip</em>, y luego <code>cut()</code>. Se memoriza el inicio original del clip. Hay retardos de asentamiento (settling) entre los pasos, ya que PT debe procesar cada cambio de selección.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Pegar en la pista de destino en la misma posición (PTSL)</strong>
+          <span><code>select_tracks_by_name([tgt[i]])</code> + cursor en el inicio de clip memorizado (<code>set_timeline_selection(start, start)</code>), y luego <code>paste()</code>. Cada pista aterriza en su propia posición original, independiente del timecode de inicio.</span>
+        </div>
+      </div>
+    </div>
+    <div class="box warn">
+      <strong>Dos conclusiones de la prueba en vivo:</strong> (1) PTSL <code>cut</code>/<code>paste</code> operan sobre la Edit-Selection; sin las opciones de Link, <code>cut</code> corta solo una pista y <code>paste</code> aterriza mal. (2) Una selección multipista <em>basada en rango temporal</em> corta de forma poco fiable cuando el material no empieza con precisión de frame (subframes, p.&nbsp;ej. <code>10:00:00:11.64</code>). Por eso se hace basándose en clips y pista a pista. Verificado contra Pro Tools: tanto el material con precisión de frame (A1/A2 → A3/A4) como el desplazado por subframes (A5/A6 → A7/A8) se mueve a la posición exacta, y el round-trip restaura el estado original.
+    </div>
+
+    <!-- ── Export ── -->
+    <h3 id="flow-export">Flujo de exportación completo <span class="badge badge-exp">Export</span></h3>
+    <p>Se inicia mediante menú o webtrigger. Comprende, según la configuración: Stop del transporte → Consolidate → WAV → Loudness → AAF → exportación a Interplay. Todo el control de pistas y selección pasa por PTSL; <strong>no</strong> se usan pulsaciones de tecla simuladas para ello.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Detener el transporte si está activo (PTSL) <span class="badge badge-rec">nuevo 06.2026</span></strong>
+          <span><code>_ensure_transport_stopped()</code> lee <code>transport_state()</code>. Si PT sigue en marcha (Record/Play), se envía <code>toggle_play_state()</code> (Stop), se espera a la detención confirmada y se dan 2&nbsp;s a PT para finalizar los archivos. Si el transporte ya está detenido, la exportación continúa de inmediato. Protege frente a daños en la sesión cuando el usuario activa la exportación sin detener antes. Se ejecuta en las cinco funciones de exportación.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Autodetectar la pista de vídeo (PTSL)</strong>
+          <span><code>_detect_video_track()</code>: busca la pista con <code>type=4</code> en la caché de pistas de PTSL. Alternativa: el nombre indicado en los ajustes.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Mostrar pistas + determinar el final del vídeo (PTSL)</strong>
+          <span><code>set_track_hidden_state(tracks, False)</code> muestra las pistas de exportación ocultas. <code>select_all_clips_on_track(video_track)</code> + <code>get_timeline_selection()</code> proporcionan el Out-Time (final del vídeo).</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Seleccionar pistas y ampliar la selección (PTSL)</strong>
+          <span><code>select_tracks_by_name(export_tracks)</code> marca las pistas de exportación, <code>set_timeline_selection(in_time, out_time)</code> fija el rango temporal, y <code>extend_selection_to_target_tracks(export_tracks)</code> amplía la Edit-Selection a todas las pistas de destino. Todo vía PTSL, sin simulación de teclado.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <strong>Consolidate (PTSL) + esperar a que finalice</strong>
+          <span><code>engine.consolidate_clip()</code> lanza el Consolidate vía PTSL. La <em>espera</em> a que finalice usa AppleScript: <code>_wait_for_consolidate_window_gone()</code> comprueba los títulos de ventana de PT (coincidencia por inicio de palabra con «Consolidating»/«Zusammenführen»). El timeout se calcula a partir de la longitud de la selección.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-content">
+          <strong>Esperar a la estabilidad del archivo WAV</strong>
+          <span><code>_wait_for_consolidated_files()</code>: comprueba cada 100ms si los archivos WAV de la carpeta <code>Audio Files/</code> son estables (tamaño sin cambios durante 500ms). Las pistas sin material no bloquean.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">7</div>
+        <div class="flow-content">
+          <strong>Normalización de sonoridad (opcional)</strong>
+          <span>Para cada pista en <code>loudness_tracks</code>: leer el WAV (soundfile), medir LUFS (pyloudnorm), calcular la corrección de ganancia, aplicar el limitador de True-Peak, sobrescribir el archivo. Después se solicita a PT que lo relea.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">8</div>
+        <div class="flow-content">
+          <strong>Exportación AAF (opcional)</strong>
+          <span>Vía automatización de UI con AppleScript en el diálogo de exportación de PT. Embedded o Reference según la configuración.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">9</div>
+        <div class="flow-content">
+          <strong>Exportación a Interplay (opcional)</strong>
+          <span>Véase la sección propia más abajo.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Interplay Export ── -->
+    <h3 id="flow-interplay-export">Exportación a Interplay <span class="badge badge-exp">Interplay</span></h3>
+    <p>Completamente vía automatización de UI (AppleScript + CGEvent sobre los procesos <code>Pro Tools</code> e <code>interplayAccess</code>). PTSL no ofrece ninguna API para esto.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Activar PT, abrir el diálogo de exportación</strong>
+          <span>AppleScript activa Pro Tools y abre <em>Clip → Export to MediaCentral</em>. PT muestra un diálogo modal con barra de progreso.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Monitorizar el log de PT vía kqueue</strong>
+          <span>El log de PT (<code>~/Library/Logs/Avid/Pro_Tools_*.txt</code>) se observa en vivo mediante <code>kqueue</code> (evento VNODE). Cada línea nueva se comprueba en busca de <code>SendDialogOnScreen … error msg = …</code>. <em>«successfully»</em> → éxito; otro texto → error.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Confirmar el diálogo de éxito de PT</strong>
+          <span>AppleScript envía Return al diálogo OK de PT. <code>_wait_for_pt_modal_dismissed()</code> espera vía kqueue hasta que PT escribe en el log el evento de cierre del diálogo.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Activar Interplay Access + navegar por el workspace</strong>
+          <span>AppleScript activa <code>interplayAccess</code>. Las pulsaciones de Tab navegan por el árbol de workspaces hasta el número de pasos configurado.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <strong>Renombrar (opcional)</strong>
+          <span>F2 abre el campo de renombrado. El nombre se lee (Cmd+A → Cmd+C), se manipula según lo configurado (Trim + Prefijo + Sufijo), se vuelve a escribir y se confirma con Enter. El campo permanece abierto durante el proceso, sin abrirse por partida doble.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Interplay Import ── -->
+    <h3 id="flow-interplay-import">Importación desde Interplay <span class="badge badge-exp">Interplay</span></h3>
+    <p>Abre una secuencia en Interplay Access y la entrega a Pro Tools. Opcionalmente, la sesión actual de PT se cierra antes de forma automática (<code>import_close_session</code>). PT confirma la importación mediante un cuadro de diálogo que se lee vía AppleScript.</p>
+
+    <!-- ── Loudness ── -->
+    <h3 id="flow-loudness">Normalización de sonoridad (EBU R128) <span class="badge badge-exp">Loudness</span></h3>
+    <p>Se ejecuta tras el Consolidate, antes de la exportación AAF. Todos los pasos se realizan en memoria; el archivo WAV solo se sobrescribe al final.</p>
+    <ol style="margin: 12px 0 12px 24px; color: var(--text); line-height: 2;">
+      <li>Encontrar el <code>&lt;Spurname&gt;*.wav</code> más reciente en la carpeta <code>Audio Files/</code> (por mtime)</li>
+      <li>Cargar el audio con <code>soundfile.read()</code></li>
+      <li>Medir la sonoridad integrada con <code>pyloudnorm.Meter.integrated_loudness()</code></li>
+      <li>Calcular la diferencia de ganancia: <code>gain_db = target_lufs − current_lufs</code></li>
+      <li>Aplicar la ganancia: <code>data *= 10^(gain_db/20)</code></li>
+      <li>Limitador de True-Peak: los picos por encima de <code>max_truepeak</code> se recalculan a la baja</li>
+      <li>Sobrescribir el archivo con <code>soundfile.write()</code></li>
+      <li>Pro Tools: <code>Clip → Refresh</code> vía AppleScript para que PT lea el archivo nuevo</li>
+    </ol>
+
+    <!-- ── Vocaster ── -->
+    <h3 id="flow-vocaster">Control USB de Vocaster <span class="badge badge-voc">Vocaster</span></h3>
+    <p>PunchBuddy se comunica directamente por USB (HID) con el Focusrite Vocaster. La clase <code>vocaster_control.VocasterUSB</code> encapsula las transacciones USB. Toda la lógica se ejecuta en el Main-Thread vía <code>rumps.Timer</code> (cada 400ms), porque las ventanas de AppKit solo pueden manejarse ahí.</p>
+    <table>
+      <tr><th>Función</th><th>Proceso</th></tr>
+      <tr><td><strong>Detección de dispositivo</strong></td><td><code>detect_vocaster()</code> busca por Vendor/Product-ID a través de libusb un Vocaster One o Two conectado.</td></tr>
+      <tr><td><strong>Alimentación fantasma 48V</strong></td><td>Un único USB HID-Report al número de registro del bit de 48V. Funciona de inmediato, sin diálogo.</td></tr>
+      <tr><td><strong>Autogain</strong></td><td>Un comando USB inicia el proceso de Autogain en el dispositivo. Una <code>AutogainWindow</code> (ventana nativa de AppKit) muestra el progreso y el resultado. El tick de <code>drive()</code> sondea el estado por USB cada 400ms hasta <code>Success/Fail/Timeout</code>.</td></tr>
+      <tr><td><strong>Routing</strong></td><td><code>capture_routing_now()</code> lee por USB el routing MUX actual de todos los canales y lo guarda como JSON. <code>apply_saved_routing()</code> lo escribe de vuelta.</td></tr>
+    </table>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ABSCHNITT 3 – DEVELOPER DEEP DIVE
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="dev">
+    <h2>3 · Developer Deep Dive <span class="badge badge-dev">Dev</span></h2>
+
+    <!-- ── Dateistruktur ── -->
+    <h3 id="dev-structure">Estructura de archivos</h3>
+    <pre><span class="cm">PunchBuddy-Apple-Silicone-v2/
+│
+├── auto_punch_in.py          # Punto de entrada: clase App, menú, HTTP, arranque
+├── watchdog.py               # Proceso vigilante separado (reinicia PB tras un fallo)
+├── collect_diagnostics.py    # Script de diagnóstico independiente (no necesita PB)
+│
+├── punchbuddy/               # Paquete central
+│   ├── __init__.py
+│   ├── state.py              # Estado global de ejecución (running, app_ref, iconos)
+│   ├── config.py             # Ajustes: valores predeterminados, Load/Save, Deep-Merge, migración
+│   ├── log.py                # Configuración de logging, faulthandler, sys/threading.excepthook
+│   ├── i18n.py               # Traducciones (de/en), lookup t()
+│   ├── keys.py               # Teclado CGEvent, PT-PID, _send_key/_send_key_to_app
+│   ├── engine.py             # Singleton de PTSL, deadline de gRPC, caché de pistas, Pre-Roll
+│   ├── transport.py          # run_punch_in, run_play, run_stop, run_goto_start
+│   ├── export.py             # run_export, run_interplay_export/import, WAV/AAF
+│   ├── loudness.py           # Normalización EBU R128 (pyloudnorm/soundfile/numpy)
+│   └── uikit.py              # _dispatch_main, _show_progress_win (ventana de progreso)
+│
+├── vocaster_control.py       # Comunicación USB HID con el Focusrite Vocaster (libusb)
+├── vocaster_integration.py   # AutogainWindow (AppKit), VocasterController
+├── web_record_trigger.py     # Obsoleto / disparador HTTP independiente (no en la app)
+│
+├── build_dmg.sh              # Build Universal2 (ARM64 + x86_64, requiere ambos Python)
+├── build_dmg_intel.sh        # Build solo Intel (x86_64, con libusb empaquetada)
+└── merge_universal.py        # Merge de bundle de app basado en lipo (ARM64 + x86_64)</span></pre>
+
+    <!-- ── Module ── -->
+    <h3 id="dev-modules">Módulos &amp; dependencias</h3>
+    <p>Las dependencias son estrictamente jerárquicas: ningún módulo importa de uno «superior». Esto evita las importaciones cíclicas.</p>
+    <div class="module-grid">
+      <div class="module-card">
+        <h4><code>state.py</code></h4>
+        <p>Módulo hoja. No importa nada del paquete. Contiene solo <code>running</code>, <code>running_lock</code>, <code>import_running</code>, <code>export_running</code>, <code>app_ref</code>, constantes de iconos.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>config.py</code></h4>
+        <p>Módulo hoja. Solo stdlib + <code>punchbuddy.log</code>. <code>load_settings()</code>, <code>save_settings()</code>, <code>_deep_merge()</code>.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>log.py</code></h4>
+        <p>Módulo hoja. Solo stdlib. Crea el directorio de logs, configura el logger, instala <code>faulthandler</code> y los hooks de excepción al importar.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>keys.py</code></h4>
+        <p>Módulo hoja. Quartz/CoreGraphics. Constantes VK, <code>_pt_pid()</code>, <code>_send_key()</code>, <code>_send_key_to_app()</code>, <code>_activate_app()</code>.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>uikit.py</code></h4>
+        <p>Módulo hoja. AppKit/PyObjCTools. <code>_dispatch_main()</code>, <code>_show_progress_win()</code>. No importa otros módulos del paquete.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>engine.py</code></h4>
+        <p>Importa: <code>keys</code>. Singleton de PTSL, wrapper de deadline de gRPC, <code>_ptsl_call()</code>, caché de pistas, Pre-Roll.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>transport.py</code></h4>
+        <p>Importa: <code>state, config, uikit, keys, engine</code>. Contiene todos los flujos de transporte: Punch-In, Play, Stop, GoTo.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>export.py</code></h4>
+        <p>Importa: <code>state, i18n, config, keys, engine, transport, loudness, uikit</code>. Todos los flujos de exportación + automatización de UI.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>loudness.py</code></h4>
+        <p>Importa: <code>i18n, uikit</code>. Importación diferida (lazy) de <code>soundfile, pyloudnorm, numpy</code> en la primera llamada.</p>
+      </div>
+      <div class="module-card">
+        <h4><code>auto_punch_in.py</code></h4>
+        <p>Nivel superior. Importa todo. Define <code>PunchBuddyApp</code> (rumps), el servidor HTTP, la integración de Vocaster y la lógica de arranque.</p>
+      </div>
+    </div>
+
+    <!-- ── Threading ── -->
+    <h3 id="dev-threading">Modelo de threading</h3>
+    <p>PunchBuddy es una app de un único Main-Thread (rumps/AppKit) que delega todas las operaciones de larga duración a threads daemon.</p>
+    <table>
+      <tr><th>Thread / Timer</th><th>Archivo</th><th>Tarea</th></tr>
+      <tr><td><strong>Main Thread</strong></td><td><code>auto_punch_in.py</code></td><td>Run-Loop de rumps, AppKit, todas las operaciones de UI. NUNCA debe bloquearse.</td></tr>
+      <tr><td><code>PTSLKeepAlive</code></td><td><code>auto_punch_in.py</code></td><td>Thread daemon; hace ping a <code>transport_state()</code> cada 120s para mantener caliente la conexión gRPC.</td></tr>
+      <tr><td>Threads de Punch-In / Play / Export</td><td><code>transport.py / export.py</code></td><td>Threads daemon, iniciados con cada disparador. Se ejecutan hasta finalizar.</td></tr>
+      <tr><td>Threads del servidor HTTP</td><td><code>auto_punch_in.py</code></td><td><code>ThreadingMixIn</code>: un breve thread daemon por cada petición HTTP.</td></tr>
+      <tr><td><code>StartupPreRoll</code></td><td><code>auto_punch_in.py</code></td><td>Thread daemon único, 2s tras el arranque: Pre-Roll OFF + llenar la caché de pistas.</td></tr>
+      <tr><td><code>EngineClose</code></td><td><code>engine.py</code></td><td>Thread daemon para el cierre asíncrono del canal gRPC al reiniciar el motor.</td></tr>
+      <tr><td><code>rumps.Timer</code> (Vocaster)</td><td><code>auto_punch_in.py</code></td><td>Cada 400ms: <code>vocaster.drive()</code> en el Main-Thread (ventanas de AppKit).</td></tr>
+    </table>
+
+    <div class="box danger">
+      <strong>Regla crítica:</strong> Todas las llamadas a AppKit/NSStatusItem deben realizarse en el Main-Thread. <code>_dispatch_main(fn)</code> en <code>uikit.py</code> usa <code>AppHelper.callAfter()</code> (<code>performSelectorOnMainThread:</code>), que despierta el Run-Loop de forma segura entre threads. <code>NSRunLoop.performBlock_()</code> <strong>no es seguro entre threads</strong> y no debe utilizarse.
+    </div>
+
+    <!-- ── PTSL ── -->
+    <h3 id="dev-ptsl">PTSL / gRPC <span class="badge badge-dev">Core</span></h3>
+    <p>PTSL (Pro Tools Scripting Layer) es una API basada en gRPC de Avid que escucha en el puerto 31416. El paquete de Python <code>ptsl</code> envuelve las definiciones Proto. PunchBuddy gestiona una instancia singleton (<code>_engine_instance</code>) con reconexión automática.</p>
+
+    <h4>Wrapper de deadline de gRPC (<code>engine.py:_install_grpc_deadline</code>)</h4>
+    <p>El paquete <code>ptsl</code> no pasa ningún timeout al stub de gRPC. Por eso PunchBuddy parchea <code>raw_client.SendGrpcRequest</code> con un wrapper que establece <code>timeout=_current_grpc_deadline()</code>. El valor proviene de Thread-Local-Storage (<code>_grpc_deadline_tls</code>) y lo fija <code>_ptsl_call()</code> antes de cada llamada.</p>
+
+    <h4>_ptsl_call() – llamada serializada</h4>
+    <pre><span class="kw">def</span> <span class="fn">_ptsl_call</span>(fn, *args, label=<span class="st">""</span>, timeout=<span class="nu">15.0</span>):
+    <span class="cm"># Lock exclusivo: impide llamadas gRPC en paralelo (protección frente al retardo de NEXIS)</span>
+    <span class="kw">if not</span> _ptsl_lock.acquire(timeout=<span class="nu">6.0</span>):
+        <span class="kw">return</span> False, None
+
+    _grpc_deadline_tls.value = timeout  <span class="cm"># Deadline para esta llamada</span>
+    <span class="kw">try</span>:
+        <span class="kw">return</span> True, fn(*args)
+    <span class="kw">except</span> grpc.RpcError <span class="kw">as</span> e:
+        <span class="kw">if</span> e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+            ...  <span class="cm"># Timeout → descartar el motor</span>
+        _reset_engine()
+        <span class="kw">return</span> False, e
+    <span class="kw">finally</span>:
+        _ptsl_lock.release()</pre>
+
+    <h4>Caché de pistas</h4>
+    <p>Los nombres de pista no cambian durante una sesión. <code>_get_cached_track_names()</code> los carga una única vez (al arrancar o en el primer disparador de grabación) y los mantiene en memoria. La caché se vacía al reiniciar el motor / cambiar de sesión mediante <code>_invalidate_session_tracks()</code>. <code>run_play()</code> sigue leyendo las pistas en vivo, ya que la selección actual se necesita en tiempo real.</p>
+
+    <!-- ── AppKit ── -->
+    <h3 id="dev-appkit">AppKit &amp; Main-Thread-Dispatch <span class="badge badge-dev">AppKit</span></h3>
+    <pre><span class="cm"># uikit.py – Dispatch seguro entre threads al Main-Thread</span>
+<span class="kw">def</span> <span class="fn">_dispatch_main</span>(fn):
+    <span class="kw">def</span> <span class="fn">_safe</span>():
+        <span class="kw">try</span>:
+            fn()
+        <span class="kw">except</span> Exception:
+            logging.exception(<span class="st">"_dispatch_main: Fehler im Main-Thread-Block"</span>)
+    <span class="kw">try</span>:
+        <span class="kw">from</span> PyObjCTools <span class="kw">import</span> AppHelper
+        AppHelper.callAfter(_safe)   <span class="cm"># = performSelectorOnMainThread:</span>
+    <span class="kw">except</span> Exception:
+        <span class="kw">pass</span></pre>
+
+    <p>¿Por qué no <code>NSRunLoop.performBlock_()</code>? Ese método no es seguro entre threads y no despierta el Run-Loop. Las llamadas desde threads de trabajo pueden perderse silenciosamente o provocar condiciones de carrera. <code>AppHelper.callAfter()</code> usa internamente <code>performSelectorOnMainThread:withObject:waitUntilDone:</code> (wait=False) y es el patrón correcto.</p>
+
+    <!-- ── CGEvent ── -->
+    <h3 id="dev-cgevent">CGEvent – control de teclado <span class="badge badge-dev">Input</span></h3>
+    <p>Para las pocas acciones sin API de PTSL, las pulsaciones de tecla se envían como CGEvents directamente al PID de Pro Tools; esto funciona incluso cuando PT no está en primer plano. En la práctica, de esto solo queda la <strong>alternativa de Pre-Roll</strong> (Cmd+K), por si el ajuste vía PTSL <code>SetTimelineSelection</code> falla tres veces. La ampliación de la selección durante la exportación <strong>no</strong> pasa por teclado, sino por PTSL <code>extend_selection_to_target_tracks()</code>; la antigua función auxiliar Shift+Ö (<code>_send_shift_oe</code>) ya no está activa en la ruta de código actual.</p>
+    <pre><span class="cm"># keys.py</span>
+<span class="kw">def</span> <span class="fn">_send_key_to_app</span>(pid, vk, cmd=False, shift=False):
+    src = Quartz.CGEventSourceCreate(kCGEventSourceStateHIDSystemState)
+    ev_dn = Quartz.CGEventCreateKeyboardEvent(src, vk, True)
+    <span class="kw">if</span> cmd:
+        Quartz.CGEventSetFlags(ev_dn, kCGEventFlagMaskCommand)
+    Quartz.CGEventPostToPid(pid, ev_dn)
+    Quartz.CGEventPostToPid(pid, Quartz.CGEventCreateKeyboardEvent(src, vk, False))</pre>
+
+    <p>Constantes VK (códigos de hardware de macOS, independientes de la distribución): <code>_VK_K=40</code> (Cmd+K = alternativa de Pre-Roll), <code>_VK_F2=120</code> (renombrado en Interplay), <code>_VK_ESC=53</code>, <code>_VK_RETURN=36</code>. Los CGEvents se usan además en la automatización de UI de Interplay (F2/Tab/Cmd+A/C/V), ya que Interplay Access no tiene API de PTSL.</p>
+
+    <!-- ── AppleScript ── -->
+    <h3 id="dev-applescript">AppleScript / automatización de UI <span class="badge badge-dev">UI</span></h3>
+    <p>AppleScript vía <code>osascript</code> (subprocess) se usa para acciones que no tienen API de PTSL:</p>
+    <ul style="margin: 12px 0 12px 24px; line-height: 2; color: var(--text);">
+      <li>Leer los títulos de ventana de PT (<code>name of every window</code>) — p. ej. para esperar al final del proceso de Consolidate</li>
+      <li>Lanzar el menú de exportación de PT (Clip → Export to MediaCentral). El Consolidate en sí se ejecuta vía PTSL <code>consolidate_clip()</code>, no por AppleScript.</li>
+      <li>Controlar Interplay Access (navegación con Tab, renombrado con F2, Cmd+C/V)</li>
+      <li>Leer el Static-Text de los cuadros de diálogo de PT (resultado de la exportación)</li>
+      <li>Activar la app (<code>tell application "interplayAccess" to activate</code>)</li>
+    </ul>
+    <p>Todas las llamadas a AppleScript se encapsulan mediante <code>_run_applescript(script, timeout=30)</code>, que arranca un proceso <code>subprocess.run()</code>. En caso de timeout, la función devuelve un código de retorno de error.</p>
+    <div class="box warn">
+      <strong>Permiso de accesibilidad:</strong> El acceso de AppleScript a <code>System Events</code> requiere que PunchBuddy (o Python) esté autorizado en <em>Ajustes del sistema → Privacidad → Accesibilidad</em>.
+    </div>
+
+    <!-- ── kqueue ── -->
+    <h3 id="dev-kqueue">kqueue – monitorización de archivos <span class="badge badge-dev">macOS</span></h3>
+    <p><code>kqueue</code> es el mecanismo de notificación de eventos del kernel de macOS. PunchBuddy lo usa para vigilar el archivo de log de PT sin hacer polling:</p>
+    <pre><span class="cm"># export.py – Simplificado</span>
+fd = os.open(log_path, os.O_RDONLY | os.O_NONBLOCK)
+kq = select.kqueue()
+ke = select.kevent(fd,
+    filter=select.KQ_FILTER_VNODE,
+    flags=select.KQ_EV_ADD | select.KQ_EV_ENABLE | select.KQ_EV_CLEAR,
+    fflags=select.KQ_NOTE_WRITE | select.KQ_NOTE_EXTEND)
+
+<span class="kw">while</span> time.time() < deadline:
+    events = kq.control([ke], <span class="nu">4</span>, min(remaining, <span class="nu">2.0</span>))  <span class="cm"># bloquea hasta un evento</span>
+    <span class="kw">if</span> events:
+        <span class="cm"># Leer bytes nuevos, comprobar el marcador</span>
+        ...</pre>
+
+    <p>Ventajas frente al polling: reacción inmediata ante un evento de archivo (sin un intervalo fijo de 0.3s), sin carga de CPU entre escrituras. Alternativa a un polling de 0.3s si <code>kqueue</code> no está disponible por algún motivo.</p>
+
+    <!-- ── HTTP ── -->
+    <h3 id="dev-http">API de control: Dispatcher + transportes <span class="badge badge-dev">API</span></h3>
+    <p>En el núcleo hay <strong>una</strong> tabla de comandos <code>command_dispatch(command, args) → (ok, msg)</code> (<code>_command_table()</code>). UNA entrada por función (<code>record_a/b</code>, <code>play</code>, <code>play_custom</code>, <code>goto_start</code>, <code>move_audio</code>, <code>import</code>, todas las exportaciones, <code>preset</code>, <code>vocaster_*</code>, <code>ping/status/list</code>). <strong>Todos</strong> los transportes llaman exclusivamente a este dispatcher, de modo que HTTP y Socket comparten automáticamente el debounce y la serialización de la exportación.</p>
+    <p><strong>Transporte 1 – HTTP:</strong> <code>ThreadingMixIn + TCPServer</code> embebido. Por cada petición de disparo, <code>200 OK</code> inmediato; la función continúa en cola. Socket-Timeout (30 s) frente a clientes lentos. En un bind a <code>0.0.0.0</code> (LAN) se genera automáticamente un token (<code>secrets.token_urlsafe(16)</code>); las peticiones sin el token correcto reciben <code>401</code> (comparación segura frente a timing).</p>
+    <p><strong>Transporte 2 – Unix-Domain-Socket:</strong> <code>AF_UNIX/SOCK_STREAM</code> en <code>/tmp/punchbuddy.sock</code>, permisos de archivo <code>0600</code>. <strong>Sin pila IP</strong> → invisible para los filtros de red (Defender). Protocolo de líneas, bucle de accept con threads, cierre limpio vía <code>atexit</code> + manejadores de quit/señal + limpieza de socket obsoleto.</p>
+    <pre><span class="kw">def</span> <span class="fn">command_dispatch</span>(self, command, args=<span class="kw">None</span>):
+    cmd = _COMMAND_ALIASES.get(command.lower(), command.lower())
+    handler = self._command_table().get(cmd)
+    <span class="kw">if</span> handler <span class="kw">is None</span>: <span class="kw">return</span> (<span class="kw">False</span>, <span class="st">f"unknown command: {command}"</span>)
+    <span class="kw">return</span> handler(args)        <span class="st"># → (ok, msg)</span></pre>
+
+    <h3 id="dev-streamdeck">Integración con Stream Deck <span class="badge badge-dev">Stream Deck</span></h3>
+    <p>Dos vías sin red, ambas contra el Unix-Socket:</p>
+    <ul>
+      <li><strong>Plugin de Node</strong> (<code>streamdeck/plugin/</code>): una acción «Comando de PunchBuddy» con desplegable de comandos. Al pulsar la tecla se conecta al Socket mediante el <code>net</code> de Node. Empaquetado con esbuild (incl. <code>ws</code>), comprimido como <code>.streamDeckPlugin</code> e incluido en PunchBuddy (Ajustes → «Instalar plugin»).</li>
+      <li><strong>Lanzador .app</strong>: una minúscula <code>.app</code> por comando que escribe al Socket mediante <code>nc -U</code>, para la acción integrada de Stream Deck «Sistema → Abrir», sin plugin alguno.</li>
+    </ul>
+
+    <!-- ── Settings ── -->
+    <h3 id="dev-settings">Sistema de ajustes <span class="badge badge-dev">Config</span></h3>
+    <p>Los ajustes se guardan como JSON en <code>~/.punchbuddy/settings.json</code>. Al cargar se realiza un Deep-Merge recursivo con los valores predeterminados: las claves recién añadidas en el código se incorporan automáticamente y los valores de usuario existentes se conservan.</p>
+    <pre><span class="kw">def</span> <span class="fn">_deep_merge</span>(default, override):
+    <span class="st">"""Neue Keys aus default werden ergänzt; override gewinnt bei Konflikten."""</span>
+    <span class="kw">if isinstance</span>(default, dict) <span class="kw">and isinstance</span>(override, dict):
+        out = dict(default)
+        <span class="kw">for</span> k, v <span class="kw">in</span> override.items():
+            out[k] = _deep_merge(default[k], v) <span class="kw">if</span> k <span class="kw">in</span> default <span class="kw">else</span> v
+        <span class="kw">return</span> out
+    <span class="kw">return</span> override</pre>
+
+    <p>Las entradas de preset reciben además un merge de plantilla (<code>_PRESET_TEMPLATE</code>), para que las claves de preset recién añadidas aparezcan también en los presets antiguos ya guardados.</p>
+
+    <!-- ── Crash-Diagnose ── -->
+    <h3 id="dev-crash">Diagnóstico de fallos <span class="badge badge-dev">Debug</span></h3>
+    <p>Tres niveles capturan errores que, de otro modo, desaparecerían sin dejar rastro:</p>
+
+    <table>
+      <tr><th>Mecanismo</th><th>Archivo</th><th>Qué captura</th></tr>
+      <tr><td><strong>faulthandler</strong></td><td><code>log.py</code></td><td>Fallos nativos (SIGSEGV, SIGABRT) — escribe stacktraces a nivel C de todos los threads de Python en <code>PunchBuddy_crash.log</code>. Imprescindible ante errores de AppKit/ObjC.</td></tr>
+      <tr><td><strong>threading.excepthook</strong></td><td><code>log.py</code></td><td>Excepciones no controladas en threads daemon. Sin este hook, los threads mueren en silencio.</td></tr>
+      <tr><td><strong>sys.excepthook</strong></td><td><code>log.py</code></td><td>Excepciones no controladas en el Main-Thread (antes del fin del Run-Loop de rumps).</td></tr>
+    </table>
+
+    <p>El script de diagnóstico <code>collect_diagnostics.py</code> (o <code>PunchBuddy_Diagnose.app</code> del DMG) recopila todos los logs relevantes, los informes de fallos de PT, la información del sistema y la salida de faulthandler en un único archivo de texto en el Escritorio.</p>
+
+    <div class="box note">
+      <strong>Importante para el build:</strong> El <strong>build Universal2</strong> (<code>build_dmg.sh</code>) requiere dos instalaciones de Python —una nativa ARM64 y una x86_64— cada una con sus propios paquetes (numpy, scipy, etc.). El <strong>build de Intel</strong> (<code>build_dmg_intel.sh</code>) funciona con el Python de framework 3.14 (x86_64) y empaqueta libusb automáticamente. Para el equipo de estudio (Mac Intel), el build de Intel es el correcto.
+    </div>
+
+    <!-- ── Code-Umfang ── -->
+    <h3 id="dev-loc">Volumen de código <span class="badge badge-dev">A fecha de 06.2026</span></h3>
+    <p>Número de líneas incluyendo líneas en blanco y de comentario (<code>wc -l</code>).</p>
+
+    <table>
+      <tr><th>Volumen</th><th style="text-align:right;">Líneas</th></tr>
+      <tr><td><strong>App central</strong> (<code>auto_punch_in.py</code> + <code>punchbuddy/</code>)</td><td style="text-align:right;"><strong>9.686</strong></td></tr>
+      <tr><td>Todo el Python de la app (incl. Vocaster, Watchdog, diagnóstico, API)</td><td style="text-align:right;">12.113</td></tr>
+      <tr><td>Integración con Stream Deck (plugin de Node + lanzadores, fuente)</td><td style="text-align:right;">465</td></tr>
+      <tr><td>Scripts de build/auxiliares + tests</td><td style="text-align:right;">719</td></tr>
+    </table>
+
+    <h4>Desglose de la app central</h4>
+    <div class="loc-bars">
+      <div class="loc-row"><span class="loc-name"><code>auto_punch_in.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:100%;"></span></span><span class="loc-val">3.290</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/export.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:80.2%;"></span></span><span class="loc-val">2.638</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/i18n.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:28.9%;"></span></span><span class="loc-val">952</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/transport.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:16.8%;"></span></span><span class="loc-val">554</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/loudness.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:10.9%;"></span></span><span class="loc-val">359</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/engine.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:10.3%;"></span></span><span class="loc-val">338</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/keys.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:6.4%;"></span></span><span class="loc-val">212</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/log.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:4.2%;"></span></span><span class="loc-val">137</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/config.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:3.8%;"></span></span><span class="loc-val">125</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/uikit.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:3.0%;"></span></span><span class="loc-val">100</span></div>
+      <div class="loc-row"><span class="loc-name"><code>punchbuddy/state.py</code></span><span class="loc-bar"><span class="loc-fill" style="width:0.6%;"></span></span><span class="loc-val">19</span></div>
+    </div>
+    <p style="font-size:13px; color:var(--muted); margin-top:12px;"><code>auto_punch_in.py</code> y <code>export.py</code> constituyen juntos alrededor de dos tercios de la app central, lo que refleja la complejidad de la UI/menús y la extensa automatización de exportación/Interplay.</p>
+
+  </section>
+
+</main>
+</div>
+
+<script>
+  // Aktiven Nav-Link beim Scrollen hervorheben
+  const sections = document.querySelectorAll('[id]');
+  const navLinks  = document.querySelectorAll('nav a[href^="#"]');
+  const observer  = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

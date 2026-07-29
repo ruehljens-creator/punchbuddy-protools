@@ -1,0 +1,32 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# punchbuddy-send  —  schickt einen Befehl an PunchBuddy über den lokalen
+#                     Unix-Domain-Socket. KEIN Netzwerk (kein TCP/Loopback),
+#                     daher für Netzwerk-Filter (Microsoft Defender) unsichtbar.
+#
+# Verwendung:
+#     punchbuddy-send play
+#     punchbuddy-send record_a
+#     punchbuddy-send preset 3
+#     punchbuddy-send export_wav
+#     punchbuddy-send list          # zeigt alle verfügbaren Befehle
+#
+# Socket-Pfad überschreiben (falls in den Einstellungen geändert):
+#     PUNCHBUDDY_SOCK=/eigener/pfad.sock punchbuddy-send play
+# ─────────────────────────────────────────────────────────────────────────────
+SOCK="${PUNCHBUDDY_SOCK:-/tmp/punchbuddy.sock}"
+
+if [ "$#" -eq 0 ]; then
+    echo "Verwendung: punchbuddy-send <befehl> [arg ...]" >&2
+    echo "z. B.:      punchbuddy-send play   |   punchbuddy-send preset 3" >&2
+    exit 2
+fi
+
+if [ ! -S "$SOCK" ]; then
+    echo "PunchBuddy-Socket nicht gefunden: $SOCK" >&2
+    echo "Läuft PunchBuddy? (Unix-Socket-Steuerung muss aktiv sein)" >&2
+    exit 1
+fi
+
+# Befehl + Argumente als eine Zeile senden; Antwort des Servers ausgeben.
+printf '%s' "$*" | /usr/bin/nc -U "$SOCK"

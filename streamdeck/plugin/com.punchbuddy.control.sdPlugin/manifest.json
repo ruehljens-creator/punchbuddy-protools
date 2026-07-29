@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "Name": "PunchBuddy",
+  "Version": "1.0.0.0",
+  "Author": "Jens Rühl",
+  "URL": "https://github.com/",
+  "Description": "Steuert PunchBuddy über den lokalen Unix-Socket – komplett ohne Netzwerk (kein TCP/Loopback). Eine Aktion, in der man pro Taste den gewünschten Befehl auswählt.",
+  "Category": "PunchBuddy",
+  "CategoryIcon": "imgs/plugin/category-icon",
+  "Icon": "imgs/plugin/marketplace",
+  "SDKVersion": 2,
+  "Software": { "MinimumVersion": "6.5" },
+  "OS": [
+    { "Platform": "mac", "MinimumVersion": "11.0" }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "CodePath": "bin/plugin.js",
+  "UUID": "com.punchbuddy.control",
+  "Actions": [
+    {
+      "Name": "PunchBuddy Befehl",
+      "UUID": "com.punchbuddy.control.command",
+      "Icon": "imgs/actions/command/icon",
+      "Tooltip": "Sendet einen Befehl an PunchBuddy (lokaler Socket, kein Netzwerk).",
+      "PropertyInspectorPath": "ui/inspector.html",
+      "Controllers": ["Keypad"],
+      "States": [
+        {
+          "Image": "imgs/actions/command/key",
+          "TitleAlignment": "bottom"
+        }
+      ]
+    }
+  ]
+}

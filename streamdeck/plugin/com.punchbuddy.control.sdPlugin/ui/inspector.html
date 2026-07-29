@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PunchBuddy</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      font-family: -apple-system, "Segoe UI", sans-serif;
+      font-size: 12px; color: #d8d8d8; background: transparent;
+      margin: 0; padding: 8px 0;
+    }
+    .row { display: flex; align-items: center; margin: 6px 12px; }
+    .row label { flex: 0 0 88px; text-align: right; padding-right: 10px; color: #9a9a9a; }
+    .row select, .row input {
+      flex: 1 1 auto; background: #2d2d2d; color: #fff;
+      border: 1px solid #3a3a3a; border-radius: 4px; padding: 4px 6px;
+    }
+    .hint { margin: 4px 12px 10px 110px; color: #777; font-size: 11px; }
+    .hidden { display: none; }
+    optgroup { color: #8ab4f8; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <label for="command">Befehl</label>
+    <select id="command">
+      <optgroup label="Transport / Aufnahme">
+        <option value="record_a">Record A</option>
+        <option value="record_b">Record B</option>
+        <option value="play">Play / Stop</option>
+        <option value="play_custom">Play Custom</option>
+        <option value="goto_start">Cursor an Start</option>
+        <option value="move_audio">Audio verschieben</option>
+      </optgroup>
+      <optgroup label="Import / Export">
+        <option value="import">Import</option>
+        <option value="export_wav">Export WAV</option>
+        <option value="export_aaf">Export AAF (embedded)</option>
+        <option value="export_aaf_reference">Export AAF (reference)</option>
+        <option value="export_interplay">Export Interplay</option>
+      </optgroup>
+      <optgroup label="Presets">
+        <option value="preset">Preset laden …</option>
+      </optgroup>
+      <optgroup label="Vocaster">
+        <option value="vocaster_autogain_host">Autogain Host</option>
+        <option value="vocaster_autogain_guest">Autogain Guest</option>
+        <option value="vocaster_phantom_on">Phantom AN</option>
+        <option value="vocaster_phantom_off">Phantom AUS</option>
+      </optgroup>
+      <optgroup label="Diagnose">
+        <option value="ping">Ping</option>
+        <option value="status">Status</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <div class="row hidden" id="presetRow">
+    <label for="presetArg">Preset-Nr.</label>
+    <input id="presetArg" type="number" min="1" max="8" value="1" />
+  </div>
+
+  <div class="row">
+    <label for="socketPath">Socket</label>
+    <input id="socketPath" type="text" placeholder="/tmp/punchbuddy.sock" />
+  </div>
+  <div class="hint">Leer = Standard /tmp/punchbuddy.sock. Kein Netzwerk – lokaler Socket.</div>
+
+  <script>
+    let websocket = null, uuid = null;
+    let settings = {};
+
+    const $command = document.getElementById("command");
+    const $presetArg = document.getElementById("presetArg");
+    const $presetRow = document.getElementById("presetRow");
+    const $socketPath = document.getElementById("socketPath");
+
+    function updatePresetVisibility() {
+      $presetRow.classList.toggle("hidden", $command.value !== "preset");
+    }
+
+    function saveSettings() {
+      settings.command = $command.value;
+      settings.presetArg = $presetArg.value;
+      settings.socketPath = $socketPath.value;
+      if (websocket && websocket.readyState === 1) {
+        websocket.send(JSON.stringify({
+          event: "setSettings", context: uuid, payload: settings
+        }));
+      }
+    }
+
+    [$command, $presetArg, $socketPath].forEach((el) =>
+      el.addEventListener("change", () => { updatePresetVisibility(); saveSettings(); })
+    );
+
+    // Vom Stream Deck aufgerufener Einstiegspunkt.
+    function connectElgatoStreamDeckSocket(inPort, inUUID, inRegisterEvent, inInfo, inActionInfo) {
+      uuid = inUUID;
+      websocket = new WebSocket("ws://127.0.0.1:" + inPort);
+
+      websocket.onopen = () => {
+        websocket.send(JSON.stringify({ event: inRegisterEvent, uuid: inUUID }));
+        // vorhandene Settings übernehmen
+        try {
+          const ai = typeof inActionInfo === "string" ? JSON.parse(inActionInfo) : inActionInfo;
+          settings = (ai && ai.payload && ai.payload.settings) || {};
+        } catch (e) { settings = {}; }
+        if (settings.command) $command.value = settings.command;
+        if (settings.presetArg) $presetArg.value = settings.presetArg;
+        if (settings.socketPath) $socketPath.value = settings.socketPath;
+        updatePresetVisibility();
+      };
+
+      websocket.onmessage = (evt) => {
+        let msg; try { msg = JSON.parse(evt.data); } catch { return; }
+        if (msg.event === "didReceiveSettings") {
+          settings = (msg.payload && msg.payload.settings) || {};
+          if (settings.command) $command.value = settings.command;
+          if (settings.presetArg) $presetArg.value = settings.presetArg;
+          if (settings.socketPath) $socketPath.value = settings.socketPath;
+          updatePresetVisibility();
+        }
+      };
+    }
+    window.connectElgatoStreamDeckSocket = connectElgatoStreamDeckSocket;
+  </script>
+</body>
+</html>

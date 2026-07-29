@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Distributables (too large for git)
+*.dmg
+*.dmg.zip
+
+# Compiled app bundles
+*.app
+
+# Stream-Deck-Plugin Build-Abhängigkeiten (via build.command erzeugt)
+streamdeck/plugin/node_modules/
+
+# Lokale Werkzeug-/Editor-Konfiguration (maschinenspezifische Pfade)
+.mcp.json

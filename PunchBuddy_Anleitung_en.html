@@ -1,0 +1,687 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PunchBuddy – User Guide</title>
+<style>
+  :root {
+    --red: #e03030;
+    --bg: #0e0e0f;
+    --bg2: #161618;
+    --bg3: #1e1e22;
+    --border: #252528;
+    --text: #e8e8ec;
+    --muted: #888;
+    --blue: #0a84ff;
+    --green: #30d158;
+    --yellow: #ffd60a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 60px 24px 100px;
+  }
+
+  /* ── LOGO ── */
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 15px; font-weight: 600; color: var(--muted);
+    margin-bottom: 64px;
+  }
+  .logo-dot {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--red);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 6px rgba(224,48,48,.5); }
+    50%      { box-shadow: 0 0 18px rgba(224,48,48,.9); }
+  }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 52px); font-weight: 800;
+    letter-spacing: -1.5px; text-align: center; line-height: 1.15;
+    max-width: 600px; margin-bottom: 16px;
+  }
+  h1 em { font-style: normal; color: var(--red); }
+  .subtitle {
+    text-align: center; color: var(--muted); font-size: 17px;
+    max-width: 460px; line-height: 1.6; margin-bottom: 80px;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    width: 100%; max-width: 680px;
+    font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--red);
+    margin-bottom: 28px; margin-top: 80px;
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  /* ── STEPS ── */
+  .steps { width: 100%; max-width: 620px; }
+  .step {
+    display: flex; gap: 24px; padding: 30px 0;
+    border-bottom: 1px solid var(--border);
+    opacity: 0; transform: translateY(20px);
+    transition: opacity .5s, transform .5s;
+  }
+  .step:last-child { border-bottom: none; }
+  .step.show { opacity: 1; transform: none; }
+  .step-num {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(224,48,48,.1); border: 1.5px solid rgba(224,48,48,.3);
+    color: var(--red); display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; margin-top: 2px;
+  }
+  .step-body h2 { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .step-body p  { font-size: 15px; color: var(--muted); line-height: 1.65; margin-bottom: 12px; }
+  .step-body p:last-child { margin-bottom: 0; }
+  .action {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px;
+    font-size: 14px; font-weight: 500; margin-top: 4px; margin-bottom: 10px;
+  }
+  .action .arr { color: var(--red); }
+
+  /* ════════════════════════════════════════════
+     STREAM DECK
+  ════════════════════════════════════════════ */
+  .sd-wrapper {
+    width: 100%; max-width: 680px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; overflow: hidden;
+  }
+  .sd-inner { padding: 32px; }
+  .sd-intro { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+  .sd-intro strong { color: var(--text); }
+
+  /* the deck */
+  .deck {
+    background: #0a0a0b;
+    border-radius: 18px;
+    padding: 18px;
+    display: inline-flex; flex-direction: column; gap: 10px;
+    border: 1px solid #1a1a1e;
+    box-shadow: 0 8px 40px rgba(0,0,0,.6);
+    width: 100%;
+  }
+  .deck-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+
+  .btn {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 1.5px solid #2a2a35;
+    background: #111115;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 5px; padding: 8px 4px;
+    transition: background .15s, border-color .2s, transform .1s, box-shadow .2s;
+    position: relative; overflow: hidden;
+    color: #c8c8d0;
+  }
+  .btn:hover { background: #1a1a20; border-color: #3a3a48; transform: scale(1.04); }
+  .btn:active { transform: scale(.97); }
+  .btn.active { border-color: rgba(224,48,48,.6); background: rgba(224,48,48,.12); box-shadow: 0 0 14px rgba(224,48,48,.25); }
+  .btn.active .btn-label { color: #fff; }
+  .btn.selected { border-color: var(--red); background: rgba(224,48,48,.18); box-shadow: 0 0 20px rgba(224,48,48,.35); }
+
+  .btn.inactive { opacity: .22; cursor: default; }
+  .btn.inactive:hover { background: #111115; border-color: #2a2a35; transform: none; }
+
+  .btn.page-btn { border-color: rgba(80,120,255,.5); background: rgba(80,120,255,.18); color: #8ab4ff; }
+  .btn.page-btn:hover { background: rgba(80,120,255,.28); }
+
+  .btn svg { width: 28px; height: 28px; flex-shrink: 0; }
+  .btn-label { font-size: 10.5px; font-weight: 600; letter-spacing: .3px; line-height: 1.2; text-align: center; color: #b0b0c0; }
+  .btn.active .btn-label, .btn.selected .btn-label { color: #fff; }
+
+  /* workflow step badges */
+  .btn-badge {
+    position: absolute; top: 4px; right: 4px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--red); color: #fff;
+    font-size: 9px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* explanation panel */
+  .sd-explain {
+    margin-top: 20px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px;
+    transition: opacity .25s; min-height: 80px;
+  }
+  .sd-explain h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .sd-explain p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .sd-explain .tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 5px; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: .8px;
+  }
+  .tag-main  { background: rgba(224,48,48,.18); color: var(--red); }
+  .tag-extra { background: rgba(255,214,10,.12); color: var(--yellow); }
+  .tag-page  { background: rgba(80,120,255,.18); color: #8ab4ff; }
+  .tag-off   { background: rgba(255,255,255,.07); color: var(--muted); }
+
+  /* ════════════════════════════════════════════
+     VOCASTER ONE
+  ════════════════════════════════════════════ */
+  .voc-wrapper {
+    width: 100%; max-width: 680px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; overflow: hidden;
+    margin-top: 0;
+  }
+  .voc-inner { padding: 32px; }
+  .voc-intro { font-size: 14px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+
+  .vocaster {
+    width: 100%; max-width: 440px; margin: 0 auto;
+    background: #d11f1f;          /* red frame */
+    border-radius: 90px / 64px;
+    padding: 5px;
+    box-shadow: 0 0 0 6px #34343a, 0 14px 55px rgba(0,0,0,.6);  /* gray outer edge */
+    position: relative;
+  }
+  .voc-face {
+    background: radial-gradient(120% 130% at 50% 0%, #1a1a20, #08080c);
+    border-radius: 86px / 60px;
+    padding: 30px 44px 26px;
+    border: 1px solid #000;
+  }
+  .voc-brandbar {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-bottom: 26px; position: relative;
+  }
+  .voc-brand { font-size: 16px; font-weight: 700; letter-spacing: .5px; color: #f0f0f4; }
+  .voc-brand .one { font-weight: 300; color: #b0b0b8; }
+  .voc-48v { position: absolute; right: 30px; font-size: 9px; font-weight: 700; color: #555; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; }
+  .voc-usb-led { width: 14px; height: 9px; border-radius: 2px; border: 1.5px solid var(--red); }
+
+  /* ── two knobs row ── */
+  .voc-knobs { display: flex; align-items: flex-start; justify-content: center; gap: 60px; margin-bottom: 26px; }
+  .voc-knob-col { display: flex; flex-direction: column; align-items: center; gap: 9px; cursor: pointer; }
+
+  /* big halo gain dial — C-shape with gap at the top */
+  .voc-halo {
+    width: 130px; height: 130px; border-radius: 50%;
+    padding: 10px;
+    background:
+      conic-gradient(from 0deg,
+        #0d0d11 0deg 32deg,                 /* gap at top right */
+        #ff9f0a 32deg, #ffd60a 55deg,       /* amber → yellow */
+        #30d158 95deg, #30d158 265deg,      /* green around the bottom */
+        #ffd60a 305deg, #ff9f0a 328deg,     /* yellow → amber */
+        #0d0d11 328deg 360deg);             /* gap at top left */
+    display: flex; align-items: center; justify-content: center;
+    transition: filter .3s; position: relative;
+    box-shadow: 0 0 18px rgba(48,209,88,.18);
+  }
+  /* white indicator marks at the top of the gap */
+  .voc-halo::before, .voc-halo::after {
+    content: ""; position: absolute; top: 4px;
+    width: 9px; height: 4px; border-radius: 2px; background: #e8e8ec;
+  }
+  .voc-halo::before { left: 50%; transform: translateX(-26px) rotate(-26deg); }
+  .voc-halo::after  { left: 50%; transform: translateX(17px) rotate(26deg); }
+  .voc-knob-col:hover .voc-halo { filter: brightness(1.25); }
+  .voc-knob-col.selected .voc-halo { animation: halo-pulse 1.4s ease-in-out infinite; }
+  @keyframes halo-pulse {
+    0%,100% { filter: brightness(1) drop-shadow(0 0 8px #30d158); }
+    50%      { filter: brightness(1.35) drop-shadow(0 0 22px #30d158); }
+  }
+  .voc-knob {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: radial-gradient(circle at 42% 30%, #28282f, #0a0a0e 74%);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: inset 0 3px 10px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.04);
+  }
+  .voc-knob-dot { display: none; }
+
+  /* small monitor/headphone knob */
+  .voc-smallknob {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: radial-gradient(circle at 42% 30%, #28282f, #0a0a0e 74%);
+    position: relative; margin: 17px 0;
+    box-shadow: inset 0 3px 10px rgba(0,0,0,.8), 0 1px 0 rgba(255,255,255,.04);
+    transition: box-shadow .2s, filter .2s;
+  }
+  .voc-smallknob .dot { position: absolute; bottom: 20px; left: 22px; width: 3px; height: 13px; border-radius: 2px; background: #d8d8dc; transform: rotate(40deg); }
+  .voc-knob-col:hover .voc-smallknob { filter: brightness(1.2); }
+  .voc-knob-col.selected .voc-smallknob { box-shadow: 0 0 18px rgba(255,214,10,.45), inset 0 2px 8px rgba(0,0,0,.7); }
+
+  .voc-icon-lbl { color: #777; }
+  .voc-icon-lbl svg { width: 18px; height: 18px; display: block; }
+
+  /* ── bottom pill with 3 buttons ── */
+  .voc-pill {
+    display: flex; align-items: center; justify-content: space-around;
+    background: #0a0a0d; border: 1px solid #2a2a30;
+    border-radius: 26px; padding: 10px 8px;
+  }
+  .voc-pbtn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; padding: 6px 4px; border-radius: 14px;
+    transition: background .15s; color: #999;
+  }
+  .voc-pbtn:hover { background: rgba(255,255,255,.05); color: #ccc; }
+  .voc-pbtn.selected { color: #fff; }
+  .voc-pbtn.selected.green { background: rgba(48,209,88,.16); box-shadow: 0 0 16px rgba(48,209,88,.35) inset; }
+  .voc-pbtn.selected.red   { background: rgba(224,48,48,.16); box-shadow: 0 0 16px rgba(224,48,48,.35) inset; }
+  .voc-pbtn svg { width: 22px; height: 22px; }
+  .voc-pbtn-lbl { font-size: 9px; font-weight: 700; letter-spacing: .3px; }
+
+  .voc-knob-label { font-size: 11px; color: var(--muted); font-weight: 600; text-align: center; }
+
+  .voc-explain {
+    margin-top: 20px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px 22px;
+    transition: opacity .25s; min-height: 72px;
+  }
+  .voc-explain h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .voc-explain p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+  /* ── FOOTER ── */
+  .footer { margin-top: 80px; color: #3a3a42; font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="logo"><div class="logo-dot"></div>PunchBuddy</div>
+
+<h1>How to record<br>your voice-over</h1>
+<p class="subtitle">Follow these steps — you don't need any Pro Tools knowledge.</p>
+
+<!-- ──────────────── STEPS ──────────────── -->
+<div class="section-label">The Workflow</div>
+<div class="steps">
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h2>Import a Sequence</h2>
+      <p>Open Interplay Access and select the sequence you want there. Then press the <strong>Import</strong> button on the Stream Deck.</p>
+      <div class="action">Stream Deck <span class="arr">→</span> <strong>Import</strong></div>
+      <p>PunchBuddy loads the sequence into Pro Tools automatically. Wait until the progress bar disappears.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h2>Set the Microphone Level (Auto Gain)</h2>
+      <p>Press the <strong>Auto Gain</strong> button on the Stream Deck (or in the PunchBuddy menu "Vocaster → Autogain Host"). PunchBuddy starts the automatic level setting right away — you don't need to press anything on the device.</p>
+      <div class="action">Stream Deck <span class="arr">→</span> <strong>Auto Gain</strong></div>
+      <p>A window appears saying "The automatic microphone level setting has started". Now speak into the microphone <strong>for about 10 seconds</strong> at your voice-over volume. The window briefly reports the result and closes on its own — done.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h2>Record the Voice-Over</h2>
+      <p>Put on the headphones. Press the <strong>Record Spr</strong> button on the Stream Deck — you'll hear a short pre-roll, then recording starts. Speak your text.</p>
+      <div class="action">Stream Deck <span class="arr">→</span> <strong>Record Spr</strong></div>
+      <p>Press Play/Stop to stop.<br>During recording, the mix runs automatically in the background.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h2>Export the Finished Result</h2>
+      <p>Once the recording is good, press <strong>Export</strong>. PunchBuddy trims, normalizes and delivers everything to Interplay NEXIS automatically.</p>
+      <div class="action">Stream Deck <span class="arr">→</span> <strong>Export</strong></div>
+      <p>Please do not switch to other programs during the export. The progress bar shows the status.</p>
+      <p>Make sure the finished sequence is in the correct folder of the Central Transfer. The finished sequence starts with "sf" for broadcast version (Sendefassung). Notify your colleague via intercom or phone (4590) for an immediate transfer to the playout server.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ──────────────── STREAM DECK ──────────────── -->
+<div class="section-label" style="margin-top:80px;">Stream Deck — Buttons Explained</div>
+<div class="sd-wrapper">
+  <div class="sd-inner">
+    <p class="sd-intro">Click a button to find out what it does.<br>
+    <strong>Numbered buttons</strong> are your main workflow — in this order.</p>
+
+    <div class="deck">
+      <!-- Row 1 -->
+      <div class="deck-row">
+        <button class="btn" id="btn-import" onclick="sdClick('import')">
+          <div class="btn-badge">1</div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+            <line x1="3"  y1="11" x2="3"  y2="13"/>
+            <line x1="6"  y1="8"  x2="6"  y2="16"/>
+            <line x1="9"  y1="5"  x2="9"  y2="19"/>
+            <line x1="12" y1="9"  x2="12" y2="15"/>
+            <line x1="15" y1="3"  x2="15" y2="21"/>
+            <line x1="18" y1="7"  x2="18" y2="17"/>
+            <line x1="21" y1="10" x2="21" y2="14"/>
+          </svg>
+          <span class="btn-label">Import</span>
+        </button>
+        <button class="btn" id="btn-pegeln" onclick="sdClick('pegeln')">
+          <div class="btn-badge">2</div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="2" width="6" height="11" rx="3"/>
+            <path d="M6 11a6 6 0 0012 0"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+            <line x1="9" y1="21" x2="15" y2="21"/>
+          </svg>
+          <span class="btn-label">Level</span>
+        </button>
+        <button class="btn" id="btn-recspr1" onclick="sdClick('recspr')">
+          <div class="btn-badge">3</div>
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="7" fill="currentColor"/>
+          </svg>
+          <span class="btn-label">Record Spr</span>
+        </button>
+        <button class="btn" id="btn-export" onclick="sdClick('export')">
+          <div class="btn-badge">4</div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 6h11v9H1z"/>
+            <path d="M12 9h4l3 3v3h-7z"/>
+            <circle cx="6"  cy="17.5" r="1.8"/>
+            <circle cx="16" cy="17.5" r="1.8"/>
+          </svg>
+          <span class="btn-label">Export</span>
+        </button>
+        <button class="btn" id="btn-copy" onclick="sdClick('copy')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="11" height="11" rx="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          <span class="btn-label">Copy</span>
+        </button>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="deck-row">
+        <button class="btn" id="btn-interplay" onclick="sdClick('interplay')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="12" height="9" rx="1.5"/>
+            <rect x="9" y="10" width="12" height="10" rx="1.5"/>
+          </svg>
+          <span class="btn-label">Interplay</span>
+        </button>
+        <button class="btn inactive">
+          <span class="btn-label"></span>
+        </button>
+        <button class="btn" id="btn-playstop" onclick="sdClick('playstop')">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 4.5v15l9-7.5z"/>
+            <rect x="16" y="4.5" width="2.6" height="15" rx="0.6"/>
+            <rect x="19.6" y="4.5" width="2.6" height="15" rx="0.6"/>
+          </svg>
+          <span class="btn-label">Play/Stop</span>
+        </button>
+        <button class="btn inactive">
+          <span class="btn-label"></span>
+        </button>
+        <button class="btn" id="btn-paste" onclick="sdClick('paste')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 4h2a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+            <rect x="8" y="2.5" width="8" height="4" rx="1"/>
+          </svg>
+          <span class="btn-label">Paste</span>
+        </button>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="deck-row">
+        <button class="btn" id="btn-anfang" onclick="sdClick('anfang')">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <rect x="5" y="4.5" width="2.6" height="15" rx="0.6"/>
+            <path d="M20 4.5v15L9 12z"/>
+          </svg>
+          <span class="btn-label">Start</span>
+        </button>
+        <button class="btn" id="btn-move" onclick="sdClick('move')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 4.5v15"/>
+            <path d="M3.5 8L7 4.5 10.5 8"/>
+            <path d="M17 19.5v-15"/>
+            <path d="M13.5 16L17 19.5 20.5 16"/>
+          </svg>
+          <span class="btn-label">1+2 → 3+4</span>
+        </button>
+        <button class="btn" id="btn-rerecord" onclick="sdClick('rerecord')">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="8.5" fill="currentColor"/>
+            <path d="M10 8.5v7l5.5-3.5z" fill="#0a0a0b"/>
+          </svg>
+          <span class="btn-label">ReRecord</span>
+        </button>
+        <button class="btn inactive">
+          <span class="btn-label"></span>
+        </button>
+        <button class="btn page-btn" onclick="sdClick('page')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="btn-label" style="color:#8ab4ff;">Page</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Explanation panel -->
+    <div class="sd-explain" id="sd-explain">
+      <p style="color:#555;">← Click a button for the explanation</p>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── VOCASTER ONE ──────────────── -->
+<div class="section-label" style="margin-top:60px;">Focusrite Vocaster One — Operation</div>
+<div class="voc-wrapper">
+  <div class="voc-inner">
+    <p class="voc-intro">Click an element of the device to learn more.</p>
+
+    <div class="vocaster">
+      <div class="voc-face">
+        <div class="voc-brandbar">
+          <div class="voc-brand">vocaster <span class="one">one</span></div>
+          <div class="voc-48v">48V
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;">
+              <rect x="3" y="5" width="18" height="11" rx="1.5"/><line x1="2" y1="20" x2="22" y2="20"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Two knobs at the top -->
+        <div class="voc-knobs">
+          <!-- Large gain knob with halo level ring -->
+          <div class="voc-knob-col" id="voc-halo" onclick="vocClick('gain')">
+            <div class="voc-halo">
+              <div class="voc-knob"><div class="voc-knob-dot"></div></div>
+            </div>
+            <div class="voc-icon-lbl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <rect x="9" y="2" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0012 0M12 17v4M9 21h6"/>
+              </svg>
+            </div>
+            <div class="voc-knob-label">Gain</div>
+          </div>
+
+          <!-- Small headphone/monitor knob -->
+          <div class="voc-knob-col" id="voc-hp" onclick="vocClick('hp')">
+            <div class="voc-smallknob"><div class="dot"></div></div>
+            <div class="voc-icon-lbl" style="display:flex;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <circle cx="12" cy="7" r="3"/><path d="M5 20a7 7 0 0114 0"/>
+              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                <path d="M4 13v-1a8 8 0 0116 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.5"/><rect x="17" y="13" width="4" height="6" rx="1.5"/>
+              </svg>
+            </div>
+            <div class="voc-knob-label">Headphones</div>
+          </div>
+        </div>
+
+        <!-- Bottom button bar (unlabeled in the original) -->
+        <div class="voc-pill">
+          <!-- Auto Gain (left button, bar symbol) -->
+          <div class="voc-pbtn" id="voc-autogain" onclick="vocClick('autogain')">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="13" width="3.5" height="8" rx="1"/><rect x="10.25" y="8" width="3.5" height="13" rx="1"/><rect x="17.5" y="3" width="3.5" height="18" rx="1"/></svg>
+          </div>
+          <!-- Enhance (middle button, magic wand) -->
+          <div class="voc-pbtn" id="voc-enhance" onclick="vocClick('enhance')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/>
+              <path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/>
+            </svg>
+          </div>
+          <!-- Mute (right button, crossed-out microphone) -->
+          <div class="voc-pbtn" id="voc-mute" onclick="vocClick('mute')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0012 0M12 17v4M9 21h6"/><line x1="4" y1="4" x2="20" y2="20"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="voc-explain" id="voc-explain">
+      <p style="color:#555;">← Click an element for the explanation</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Developed by Jens Rühl</div>
+
+<script>
+/* ── Stream Deck ── */
+const sdData = {
+  import: {
+    tag: 'main', tagLabel: 'Step 1 – Main Workflow',
+    title: 'Import',
+    text: 'Starts the automatic import of a sequence from Avid Interplay Access. Make sure Interplay Access is open and the desired sequence is selected. PunchBuddy takes care of the rest.<br><br>⚠️ If another session is still open in Pro Tools, PunchBuddy saves and closes it automatically before importing the new sequence.'
+  },
+  interplay: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'Interplay',
+    text: 'Brings Avid Interplay Access — the window where you find your item — to the foreground.'
+  },
+  pegeln: {
+    tag: 'main', tagLabel: 'Step 2 – Main Workflow',
+    title: 'Level (Auto Gain)',
+    text: 'Starts the automatic level setting of the microphone on the Focusrite Vocaster — directly from PunchBuddy, without pressing anything on the device. A window appears saying "The automatic microphone level setting has started". Now speak into the microphone for about 10 seconds at your voice-over volume. The window briefly reports the result and closes on its own.'
+  },
+  recspr: {
+    tag: 'main', tagLabel: 'Step 3 – Main Workflow',
+    title: 'Record Spr',
+    text: 'Starts the voice recording on the broadcast audio track (ST). PunchBuddy activates the recording tracks, sets the pre-roll and starts recording. The automatic mix runs along in the background immediately. To stop: Play/Stop button or space bar.'
+  },
+  export: {
+    tag: 'main', tagLabel: 'Step 4 – Main Workflow',
+    title: 'Export',
+    text: 'Starts the fully automatic Interplay export. PunchBuddy trims all tracks, consolidates the audio, normalizes the loudness to broadcast level (EBU R128) and delivers the result directly to Avid Interplay NEXIS.<br><br>⚠️ Please do not switch windows during the export, as automatic mouse clicks and keyboard entries take place here. Manually switching windows would send these entries to the wrong program. Watch the progress bar at the top right.'
+  },
+  copy: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'Copy',
+    text: 'A simple copy function at the macOS level. Since not every user is familiar with macOS, this provides a convenient way — entirely without a keyboard — to copy the item in Interplay to another location.'
+  },
+  paste: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'Paste',
+    text: 'The counterpart to Copy: the paste function at the macOS level. It likewise helps to paste the item in Interplay at another location.'
+  },
+  playstop: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'Play / Stop',
+    text: 'Starts playback and stops recording and playback. The ST track is played back. If nothing has been recorded yet, there is nothing to hear.'
+  },
+  anfang: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'Start',
+    text: 'Jumps the cursor in Pro Tools back to the beginning of the session (default: 10:00:00:00). Useful when you want to listen to your item again at your leisure.'
+  },
+  move: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: '1+2 → 3+4',
+    text: 'Moves all audio from tracks 1 and 2 to tracks 3 and 4. Only needed when tracks 1 and 2 contain sound bites or background speech that should be treated as ambience.'
+  },
+  rerecord: {
+    tag: 'extra', tagLabel: 'Extra Button – When Needed',
+    title: 'ReRecord',
+    text: 'Starts a fresh recording of the broadcast audio track. Useful when you have moved or changed a voice-over that has already been recorded. Re-records the broadcast audio without overwriting the voice.'
+  },
+  page: {
+    tag: 'page', tagLabel: 'Navigation',
+    title: 'Change Page',
+    text: 'Switches to the next page view of the Stream Deck. Additional functions may be stored there.'
+  }
+};
+
+let activeBtnEl = null;
+function sdClick(id) {
+  // always remove any existing glow first so the buttons deselect
+  document.querySelectorAll('.deck .btn.selected').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById('btn-' + id) || document.getElementById('btn-' + id + '1');
+  if (el) el.classList.add('selected');
+  activeBtnEl = el;
+  const d = sdData[id];
+  const tagClass = { main:'tag-main', extra:'tag-extra', page:'tag-page', off:'tag-off' }[d.tag];
+  document.getElementById('sd-explain').innerHTML =
+    `<span class="tag ${tagClass}">${d.tagLabel}</span><h4>${d.title}</h4><p>${d.text}</p>`;
+}
+
+/* ── Vocaster ── */
+const vocData = {
+  gain: {
+    title: 'Gain — large left rotary knob',
+    text: 'Controls how loud the microphone signal is recorded. Normally you don\'t need to touch this knob manually — instead use the Auto Gain button (the left of the three lower buttons), which sets the optimal value automatically. The colored light band around the knob shows the current level.'
+  },
+  autogain: {
+    title: 'Auto Gain — left of the lower buttons',
+    text: 'This is your most important button on the device. Press it and then speak normally into the microphone for about 10 seconds, just as you will speak later. The device measures the ideal input sensitivity and sets the gain automatically. When the device briefly lights up red, the process is complete and you can begin recording.'
+  },
+  enhance: {
+    title: 'Enhance — middle of the lower buttons',
+    text: 'A sound-enhancement function of the Vocaster. Simply don\'t use this button — with PunchBuddy the mixing is handled in the background by the plugins from Accentize and Quiet Art.'
+  },
+  mute: {
+    title: 'Mute — right of the lower buttons',
+    text: 'Temporarily mutes the microphone — useful for pauses or when you need to clear your throat without it being recorded. When Mute is active, the button lights up red.'
+  },
+  hp: {
+    title: 'Headphone Volume — right rotary knob',
+    text: 'Use the right rotary knob to control the headphone volume. Turn it to the right (clockwise) for more volume. This setting only affects the monitoring in the headphones — not the recorded signal.'
+  }
+};
+
+function vocClick(id) {
+  ['voc-halo','voc-hp','voc-autogain','voc-enhance','voc-mute'].forEach(x => {
+    document.getElementById(x)?.classList.remove('selected','green','red');
+  });
+  const map = { gain:'voc-halo', hp:'voc-hp', autogain:'voc-autogain', enhance:'voc-enhance', mute:'voc-mute' };
+  const el = document.getElementById(map[id]);
+  if (el) {
+    el.classList.add('selected');
+    if (id === 'autogain') el.classList.add('green');
+    if (id === 'mute') el.classList.add('red');
+  }
+  const d = vocData[id];
+  document.getElementById('voc-explain').innerHTML = `<h4>${d.title}</h4><p>${d.text}</p>`;
+}
+
+/* ── Scroll animation ── */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('show'); io.unobserve(e.target); }});
+}, { threshold: 0.12 });
+document.querySelectorAll('.step').forEach(s => io.observe(s));
+</script>
+</body>
+</html>
