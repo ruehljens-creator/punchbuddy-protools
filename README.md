@@ -12,6 +12,14 @@ anbietet.
 
 Entwickelt von Jens Rühl. Version 2.0.2.
 
+## Download
+
+Fertige DMGs im [Release v2.0.2](https://github.com/ruehljens-creator/punchbuddy-protools/releases/tag/v2.0.2) —
+`PunchBuddy_v2.0.2_AppleSilicon.dmg` für M1/M2/M3/M4, `PunchBuddy_v2.0.2_Intel.dmg` für Intel-Macs.
+Beide bringen libusb und das Stream-Deck-Plugin mit, Homebrew wird nicht gebraucht.
+
+Die Apps sind ad-hoc signiert, nicht notarisiert: beim ersten Start **Rechtsklick → „Öffnen"**.
+
 ## Was die App macht
 
 - **Punch-In-Automation** — Ziel-Spuren finden, Record-Enable an, Input-Monitor
