@@ -134,6 +134,24 @@ def _ensure_transport_stopped(engine, settle=2.0):
     return False
 
 
+def _transport_muss_stehen(engine, schritt="Export"):
+    """Strenge Transport-Sperre (Vorgabe Jens, 02.10.2026): Laeuft beim Export noch
+    Wiedergabe oder Aufnahme, kann die Lautheitskorrektur – sie ueberschreibt die
+    konsolidierte WAV in der Session – Pro Tools zum Absturz bringen.
+
+    Wie _ensure_transport_stopped (Stop senden, auf Bestaetigung warten), aber ohne
+    "trotzdem fortfahren": Ist der Stillstand nicht bestaetigt oder der Zustand nicht
+    lesbar, bricht der Export mit ExportAbbruch ab."""
+    if _ensure_transport_stopped(engine):
+        return
+    ok, ts = _ptsl_call(engine.transport_state, label="ExportTransportPruefung", timeout=6.0)
+    if ok and str(ts) == "TS_TransportStopped":
+        return
+    zustand = str(ts) if ok else "Zustand nicht lesbar"
+    raise ExportAbbruch(f"{schritt}: Pro Tools steht nicht ({zustand}). Wiedergabe bzw. Aufnahme "
+                        f"anhalten und den Export neu starten.")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Hauptautomatisierung
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1071,7 +1089,7 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
 
         # ── Transport stoppen falls noch Aufnahme/Wiedergabe läuft ──
         prog["update"](0.05, t("prog_prep_tracks"))
-        _ensure_transport_stopped(engine)
+        _transport_muss_stehen(engine)
 
         # ── Versteckte Spuren einblenden ─────────────────────────────
         prog["update"](0.06, t("prog_prep_tracks"))
@@ -1129,7 +1147,8 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
                     loud_tracks = settings.get("loudness_tracks", ["ST"])
                     target_lufs = settings.get("target_lufs", -23.0)
                     max_tp = settings.get("max_truepeak", -3.0)
-                    _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp)
+                    _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp,
+                                               vor_spur=lambda lt: _transport_muss_stehen(engine, f"Lautheit {lt}"))
 
             logging.info("  Interplay: Vorbereitung (Consolidate+Loudness) abgeschlossen.")
 
@@ -1498,7 +1517,7 @@ def run_export(export_tracks, video_track=None, settings=None):
             return
 
         # ── Transport stoppen falls noch Aufnahme/Wiedergabe läuft ──
-        _ensure_transport_stopped(engine)
+        _transport_muss_stehen(engine)
 
         # ── 1. Versteckte Spuren einblenden ──────────────────────────
         logging.info(f"Schritt 1: Spuren einblenden: {export_tracks}...")
@@ -1553,7 +1572,8 @@ def run_export(export_tracks, video_track=None, settings=None):
                 try:
                     target_lufs = settings.get("target_lufs", -23.0)
                     max_tp = settings.get("max_truepeak", -3.0)
-                    _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp)
+                    _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp,
+                                               vor_spur=lambda lt: _transport_muss_stehen(engine, f"Lautheit {lt}"))
                 except Exception as e:
                     logging.error(f"  Normalisierung fehlgeschlagen: {e}")
             else:
@@ -1838,7 +1858,7 @@ def run_wav_export_standalone(export_tracks, settings):
         session_dir = os.path.dirname(session_path)
 
         # Transport stoppen falls noch Aufnahme/Wiedergabe läuft
-        _ensure_transport_stopped(engine)
+        _transport_muss_stehen(engine)
 
         # Spuren einblenden
         prog["update"](0.06, t("prog_prep_tracks"))
@@ -1905,7 +1925,8 @@ def run_wav_export_standalone(export_tracks, settings):
                 loud_tracks = settings.get("loudness_tracks", ["ST"])
                 target_lufs = settings.get("target_lufs", -23.0)
                 max_tp = settings.get("max_truepeak", -3.0)
-                _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp)
+                _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp,
+                                               vor_spur=lambda lt: _transport_muss_stehen(engine, f"Lautheit {lt}"))
 
         prog["update"](0.88, t("prog_copy_wav"))
         wav_dir = _resolve_export_dir(settings.get("wav_export_path"), session_dir)
@@ -1914,6 +1935,10 @@ def run_wav_export_standalone(export_tracks, settings):
         prog["update"](1.0, t("prog_wav_done"))
         time.sleep(0.8)
         logging.info("=== WAV EXPORT (Standalone) ENDE ===")
+    except ExportAbbruch as e:
+        logging.error(f"=== WAV EXPORT ABGEBROCHEN: {e} ===")
+        if prog: prog["update"](1.0, f"{t('alert_error')}: {e}")
+        _show_error("WAV-Export abgebrochen", str(e).replace('"', "'"))
     except Exception as e:
         logging.error(f"WAV Export Fehler: {e}", exc_info=True)
         _reset_if_rpc_error(e)  # toten gRPC-Channel verwerfen → kein Zombie
@@ -2231,7 +2256,7 @@ def run_aaf_export_standalone(export_tracks, settings):
         session_name = os.path.splitext(os.path.basename(session_path))[0]
 
         # Transport stoppen falls noch Aufnahme/Wiedergabe läuft
-        _ensure_transport_stopped(engine)
+        _transport_muss_stehen(engine)
 
         # Spuren einblenden
         prog["update"](0.06, t("prog_prep_tracks"))
@@ -2298,7 +2323,8 @@ def run_aaf_export_standalone(export_tracks, settings):
                 loud_tracks = settings.get("loudness_tracks", ["ST"])
                 target_lufs = settings.get("target_lufs", -23.0)
                 max_tp = settings.get("max_truepeak", -3.0)
-                _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp)
+                _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp,
+                                               vor_spur=lambda lt: _transport_muss_stehen(engine, f"Lautheit {lt}"))
 
         # Spuren erneut selektieren für AAF-Export
         prog["update"](0.85, t("prog_aaf_export"))
@@ -2312,6 +2338,10 @@ def run_aaf_export_standalone(export_tracks, settings):
         prog["update"](1.0, t("prog_aaf_done"))
         time.sleep(0.8)
         logging.info("=== AAF EXPORT (Standalone) ENDE ===")
+    except ExportAbbruch as e:
+        logging.error(f"=== AAF EXPORT ABGEBROCHEN: {e} ===")
+        if prog: prog["update"](1.0, f"{t('alert_error')}: {e}")
+        _show_error("AAF-Export abgebrochen", str(e).replace('"', "'"))
     except Exception as e:
         logging.error(f"AAF Export Fehler: {e}", exc_info=True)
         _reset_if_rpc_error(e)  # toten gRPC-Channel verwerfen → kein Zombie
@@ -2663,7 +2693,7 @@ def run_aaf_reference_export_standalone(export_tracks, settings):
         session_name = os.path.splitext(os.path.basename(session_path))[0]
 
         # Transport stoppen falls noch Aufnahme/Wiedergabe läuft
-        _ensure_transport_stopped(engine)
+        _transport_muss_stehen(engine)
 
         # Spuren einblenden + selektieren
         prog["update"](0.10, t("prog_prep_tracks"))
@@ -2709,6 +2739,10 @@ def run_aaf_reference_export_standalone(export_tracks, settings):
         prog["update"](1.0, t("prog_aaf_done"))
         time.sleep(0.8)
         logging.info("=== AAF REFERENCE EXPORT (Standalone) ENDE ===")
+    except ExportAbbruch as e:
+        logging.error(f"=== AAF REFERENCE EXPORT ABGEBROCHEN: {e} ===")
+        if prog: prog["update"](1.0, f"{t('alert_error')}: {e}")
+        _show_error("AAF-Referenz-Export abgebrochen", str(e).replace('"', "'"))
     except Exception as e:
         logging.error(f"AAF Reference Export Fehler: {e}", exc_info=True)
         _reset_if_rpc_error(e)  # toten gRPC-Channel verwerfen → kein Zombie

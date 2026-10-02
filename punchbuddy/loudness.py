@@ -585,8 +585,11 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
 _loudness_win_refs = []  # Hält ObjC-Referenzen am Leben (verhindert PyObjC-Dealloc-Crash)
 
 
-def _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp):
-    """Ruft normalize_track für jede Spur auf und zeigt dabei ein Fortschrittsfenster."""
+def _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, max_tp, vor_spur=None):
+    """Ruft normalize_track für jede Spur auf und zeigt dabei ein Fortschrittsfenster.
+
+    `vor_spur(spur)` laeuft vor jeder Korrektur (Transport-Sperre des Exports) und darf
+    mit einer Ausnahme abbrechen; das Fenster wird dann trotzdem geschlossen."""
     import AppKit as _AK
 
     win_ref   = [None]
@@ -654,15 +657,19 @@ def _run_loudness_with_progress(engine, session_dir, loud_tracks, target_lufs, m
     time.sleep(0.15)
 
     n = max(len(loud_tracks), 1)
-    for i, lt in enumerate(loud_tracks):
-        base, span = i / n, 1.0 / n
-        def _cb(frac, msg, _b=base, _s=span):
-            _update(_b + frac * _s, msg)
-        normalize_track(engine, session_dir, lt, target_lufs, max_tp, progress_cb=_cb)
+    try:
+        for i, lt in enumerate(loud_tracks):
+            base, span = i / n, 1.0 / n
+            def _cb(frac, msg, _b=base, _s=span):
+                _update(_b + frac * _s, msg)
+            if vor_spur is not None:
+                vor_spur(lt)
+            normalize_track(engine, session_dir, lt, target_lufs, max_tp, progress_cb=_cb)
 
-    _update(1.0, t("prog_loudness_done"))
-    time.sleep(0.8)
-    _close()
+        _update(1.0, t("prog_loudness_done"))
+        time.sleep(0.8)
+    finally:
+        _close()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ def test_interplay_export_bricht_ohne_video_ende_ab(monkeypatch, tmp_path):
     eng.session_path = lambda: str(tmp_path / "S.ptx")
     eng.set_track_hidden_state = lambda names, state: None
     monkeypatch.setattr(E, "_get_engine", lambda: eng)
-    monkeypatch.setattr(E, "_ensure_transport_stopped", lambda e: None)
+    monkeypatch.setattr(E, "_transport_muss_stehen", lambda e, schritt="Export": None)
     monkeypatch.setattr(E, "_detect_video_track", lambda e, s=None: "Video 1")
     monkeypatch.setattr(E, "_show_progress_win", lambda titel: {"update": lambda *a: None, "close": lambda: None})
     monkeypatch.setattr(E, "_set_busy", lambda b: None)
