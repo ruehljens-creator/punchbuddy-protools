@@ -9,6 +9,29 @@ import logging
 from punchbuddy.i18n import t
 from punchbuddy.uikit import _dispatch_main, _show_progress_win
 
+
+def _true_peak_db(data, block=1 << 18, rand=64):
+    """True Peak in dBTP nach ITU-R BS.1770-4: 4-fach ueberabgetastet.
+
+    Der reine Sample-Peak uebersieht Spitzen zwischen den Samples (bis ~3 dB).
+    Blockweise, damit lange Beitraege nicht den vierfachen Speicher brauchen;
+    `rand` Samples Ueberlappung, damit das Filter an den Blockgrenzen stimmt.
+    """
+    import numpy as np
+    from scipy.signal import resample_poly
+
+    n = len(data)
+    peak = 0.0
+    for start in range(0, n, block):
+        a = max(0, start - rand)
+        b = min(n, start + block + rand)
+        up = resample_poly(data[a:b], 4, 1, axis=0)
+        lo = (start - a) * 4
+        hi = lo + (min(n, start + block) - start) * 4
+        peak = max(peak, float(np.max(np.abs(up[lo:hi]))))
+    return 20 * np.log10(peak) if peak > 0 else -120.0
+
+
 def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max_truepeak=-3.0, progress_cb=None):
     """
     Normalisiert die konsolidierte Audiodatei einer Spur nach EBU R128.
@@ -28,7 +51,6 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     try:
         import soundfile as sf
         import pyloudnorm as pyln
-        import numpy as np
     except ImportError as e:
         logging.error(f"Normalisierung: fehlende Bibliothek: {e}")
         logging.error("  pip3 install pyloudnorm soundfile")
@@ -82,10 +104,11 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     _prog(0.55, t("prog_track_gain").format(target_name, gain_db))
     normalized = data * gain_linear
 
-    # True Peak pruefen und limitieren
-    peak_linear = np.max(np.abs(normalized))
-    peak_db = 20 * np.log10(peak_linear) if peak_linear > 0 else -120.0
-    logging.info(f"  True Peak nach Gain: {peak_db:.1f} dB (Max: {max_truepeak} dB)")
+    # True Peak pruefen und limitieren. Einmal am Original messen; der True Peak
+    # waechst linear mit dem Gain.
+    original_peak_db = _true_peak_db(data)
+    peak_db = original_peak_db + gain_db
+    logging.info(f"  True Peak nach Gain: {peak_db:.1f} dBTP (Max: {max_truepeak} dBTP)")
 
     if peak_db > max_truepeak:
         # Limitieren: Gain so reduzieren dass True Peak eingehalten wird
@@ -108,11 +131,8 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     logging.info(f"  Datei ueberschrieben: {target_name} (24 bit)")
 
     # ── Loudness Correction Metadata schreiben ───────────────────────
-    final_peak = np.max(np.abs(normalized))
-    final_peak_db = 20 * np.log10(final_peak) if final_peak > 0 else -120.0
-    original_peak = np.max(np.abs(data))
-    original_peak_db = 20 * np.log10(original_peak) if original_peak > 0 else -120.0
     limiting_applied = peak_db > max_truepeak
+    final_peak_db = max_truepeak if limiting_applied else peak_db
     if limiting_applied:
         final_lufs_val = current_lufs + gain_db - (peak_db - max_truepeak)
     else:
@@ -134,7 +154,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             mf.write(f"  Datum:              {timestamp}\n")
             mf.write(f"  Quelldatei:         {target_name}\n")
             mf.write(f"  Sample-Rate:        {rate} Hz\n")
-            mf.write(f"  Format:             24 bit PCM\n")
+            mf.write("  Format:             24 bit PCM\n")
             mf.write(f"  Kanaele:            {'Stereo' if data.ndim == 2 else 'Mono'}\n")
             mf.write(f"  Dauer:              {duration_min}:{duration_sec:05.2f}\n\n")
             mf.write("-" * 60 + "\n")
