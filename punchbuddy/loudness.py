@@ -391,12 +391,16 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     logging.info(f"  True Peak nach Gain: {peak_db:.1f} dBTP (Max: {max_truepeak} dBTP)")
 
     limiter_db = 0.0
-    if peak_db > max_truepeak:
+    # Toleranz 0,1 dB bei den Spitzen (Vorgabe Jens): erst darueber begrenzen. Sonst liefe
+    # der Limiter bei schon korrigiertem Material (erneut ausliefern) mit 0,0 dB durch.
+    if peak_db > max_truepeak + TRUE_PEAK_TOLERANZ_DB:
         # True-Peak-Limiter: nur die Spitzen werden begrenzt, die Lautheit bleibt
         # beim Ziel (frueher wurde die ganze Spur abgesenkt).
         normalized, gain_db, limiter_db, final_lufs_val, final_peak_db = _auf_ziel_mit_limiter(
             data, rate, gain_db, target_lufs, max_truepeak)
         logging.info(f"  True Peak Limiter: hoechstens {limiter_db:.1f} dB Begrenzung, Gain {gain_db:+.1f} dB")
+    elif peak_db > max_truepeak:
+        logging.info(f"  True Peak {peak_db:.2f} dBTP innerhalb der Toleranz – kein Limiting noetig")
     else:
         logging.info("  True Peak OK – kein Limiting noetig")
 
@@ -405,13 +409,19 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     # sonst passt die Datei nicht mehr zur Session.
     if rate != 48000:
         logging.warning(f"  Samplerate {rate} Hz statt 48000 Hz – Abgabeformat ist 24 bit / 48 kHz")
-    _prog(0.70, t("prog_track_write").format(target_name))
-    if paar:
-        sf.write(paar[0], normalized[:, 0], rate, subtype="PCM_24")
-        sf.write(paar[1], normalized[:, 1], rate, subtype="PCM_24")
+    dateien = list(paar) if paar else [target_file]
+    if limiter_db == 0.0 and abs(gain_db) < 0.005 and \
+            all(sf.info(f).subtype == "PCM_24" for f in dateien):
+        # Nichts zu tun (z. B. erneut ausliefern): 1,6 GB nicht unveraendert neu schreiben
+        logging.info(f"  Keine Aenderung noetig (Gain {gain_db:+.3f} dB) – Datei bleibt unveraendert")
     else:
-        sf.write(target_file, normalized, rate, subtype="PCM_24")
-    logging.info(f"  Datei ueberschrieben: {quelle} (24 bit)")
+        _prog(0.70, t("prog_track_write").format(target_name))
+        if paar:
+            sf.write(paar[0], normalized[:, 0], rate, subtype="PCM_24")
+            sf.write(paar[1], normalized[:, 1], rate, subtype="PCM_24")
+        else:
+            sf.write(target_file, normalized, rate, subtype="PCM_24")
+        logging.info(f"  Datei ueberschrieben: {quelle} (24 bit)")
 
     # ── Loudness Correction Metadata schreiben ───────────────────────
     limiting_applied = limiter_db > 0

@@ -244,3 +244,33 @@ def test_lautheit_mit_langer_digitaler_stille_schnell_und_richtig():
     wert = loudness._lautheit_lufs(x, RATE)
     assert time.time() - t < 2.0
     assert wert == pytest.approx(_lufs(x), abs=1e-6)
+
+
+def test_schon_korrigiert_kein_limiter_und_datei_unveraendert(tmp_path, monkeypatch):
+    """Erneut ausliefern: Lautheit stimmt, Spitzen innerhalb 0,1 dB – nichts tun."""
+    d = _session(tmp_path)
+    f = os.path.join(d, "Audio Files", "ST_02.wav")
+    sf.write(f, _rauschen(), RATE, subtype="PCM_24")
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0)        # erster Durchgang
+    vorher = open(f, "rb").read()
+
+    def kein_limiter(*a, **k):
+        raise AssertionError("Limiter darf nicht laufen")
+    monkeypatch.setattr(loudness, "_auf_ziel_mit_limiter", kein_limiter)
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0)        # zweiter Durchgang
+    assert open(f, "rb").read() == vorher
+
+
+def test_spitze_knapp_ueber_grenze_innerhalb_toleranz(tmp_path, monkeypatch):
+    d = _session(tmp_path)
+    f = os.path.join(d, "Audio Files", "ST_02.wav")
+    x = _mit_zwischenspitzen(-3.5)                 # True Peak nach Gain etwa -0,3 dBTP
+    sf.write(f, x, RATE, subtype="PCM_24")
+    aufrufe = []
+    echt = loudness._auf_ziel_mit_limiter
+    monkeypatch.setattr(loudness, "_auf_ziel_mit_limiter", lambda *a, **k: aufrufe.append(1) or echt(*a, **k))
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0)
+    assert aufrufe == [1]                          # deutlich ueber der Grenze: Limiter laeuft
+    aufrufe.clear()
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0 + 0.0)  # jetzt bei -3,0 (Toleranz)
+    assert aufrufe == []
