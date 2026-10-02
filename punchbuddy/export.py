@@ -417,6 +417,62 @@ def _tc_seconds(tc):
         return None
 
 
+class ExportAbbruch(Exception):
+    """Der Export wird bewusst abgebrochen, statt unvollstaendig weiterzulaufen
+    (Studio-Befund 14.09.2026: Interplay-Export ohne Consolidate lief bis zum
+    Ende durch und meldete Erfolg)."""
+
+
+def _video_ende_ermitteln(engine, video_track, versuche=3, label=""):
+    """Video-Ende ueber PTSL: Clips der Videospur selektieren, Auswahl lesen.
+    Mehrere Versuche mit wachsender Wartezeit, weil Pro Tools die Clip-Auswahl
+    unter Last nicht immer binnen 0,3 s gesetzt hat. Liefert (start, ende)
+    oder (None, None) mit Klartext im Log."""
+    pausen = (0.3, 0.8, 1.5)
+    grund = ""
+    for i in range(versuche):
+        try:
+            engine.select_all_clips_on_track(video_track)
+            time.sleep(pausen[min(i, len(pausen) - 1)])
+            sel = engine.get_timeline_selection()
+            ende = sel[1] if sel else None
+            if ende and ende != "00:00:00:00.00":
+                if i:
+                    logging.info(f"  {label}Video-Ende im {i + 1}. Versuch: {sel[0]} -> {ende}")
+                return sel[0], ende
+            grund = f"leere Auswahl ({sel})"
+        except Exception as e:
+            grund = str(e)
+        logging.warning(f"  {label}Video-Ende Versuch {i + 1}/{versuche} ohne Ergebnis: {grund}")
+    logging.error(f"  {label}Video-Ende auf Spur '{video_track}' nicht ermittelt.")
+    return None, None
+
+
+def _consolidate_mit_nachweis(engine, session_dir, export_tracks, in_time, video_end,
+                              start_time, label="", versuche=2):
+    """Consolidate ueber PTSL und danach der Nachweis, dass NEUE Audiodateien
+    entstanden sind (juenger als der Exportstart). ConsolidateClip liefert
+    keine Rueckmeldung; ohne diesen Nachweis galt ein wirkungsloser Befehl
+    als Erfolg, weil alte Dateien frueherer Exporte 'stabil' waren.
+    Wiederholt einmal mit erneuerter Auswahl, dann ExportAbbruch."""
+    for i in range(versuche):
+        if i:
+            logging.warning(f"  {label}Consolidate hat keine neuen Dateien erzeugt – Auswahl erneuern, Versuch {i + 1}/{versuche}")
+            engine.select_tracks_by_name(export_tracks)
+            time.sleep(0.4)
+            engine.set_timeline_selection(in_time=in_time, out_time=video_end)
+            time.sleep(0.4)
+            engine.extend_selection_to_target_tracks(export_tracks)
+            time.sleep(0.6)
+        engine.consolidate_clip()
+        _wait_for_consolidate_window_gone(timeout=_consolidate_timeout(in_time, video_end))
+        if _wait_for_consolidated_files(session_dir, export_tracks, timeout=10,
+                                        min_mtime=start_time - 5.0):
+            return True
+    raise ExportAbbruch("Consolidate hat keine neuen Audiodateien erzeugt – Pro Tools hat den "
+                        "Befehl nicht ausgefuehrt (Auswahl leer oder Hinweisfenster offen?).")
+
+
 def _consolidate_timeout(in_time, out_time, base=60.0, per_audio_second=0.5, cap=600.0):
     """Wartezeit fürs Consolidate-Fenster anhand der Selektionslänge.
     Lange Selektionen brauchen auf NEXIS deutlich mehr als die früher fest
@@ -489,7 +545,7 @@ def _wait_for_consolidate_window_gone(timeout=60):
     logging.warning(f"  Timeout ({int(timeout)}s) beim Warten auf das Consolidate-Fenster.")
     return False
 
-def _wait_for_consolidated_files(session_dir, track_names, timeout=10):
+def _wait_for_consolidated_files(session_dir, track_names, timeout=10, min_mtime=None):
     """
     Wartet bis die vom Consolidate geschriebenen .wav-Dateien stabil sind
     (Größe > 0, unverändert über 0.5s).
@@ -524,6 +580,8 @@ def _wait_for_consolidated_files(session_dir, track_names, timeout=10):
                         base.startswith(track_name + "-")) and f.lower().endswith(".wav"):
                     full = os.path.join(audio_dir, f)
                     mtime = os.path.getmtime(full)
+                    if min_mtime is not None and mtime < min_mtime:
+                        continue                 # alte Datei eines frueheren Exports
                     if mtime > latest_mtime:
                         latest_mtime, latest_file = mtime, full
         except Exception:
@@ -561,8 +619,11 @@ def _wait_for_consolidated_files(session_dir, track_names, timeout=10):
 
         time.sleep(0.1)
 
-    logging.warning("  Erreichte Timeout beim Warten auf stabile Audiodateien – fahre fort.")
-    return False
+    if not last_states:
+        logging.error("  Keine neuen Audiodateien nach dem Consolidate gefunden.")
+    else:
+        logging.warning("  Erreichte Timeout beim Warten auf stabile Audiodateien – fahre fort.")
+    return bool(last_states)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -990,6 +1051,7 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
 
     prog = None
     _set_busy(True)
+    export_start_time = time.time()
     try:
         logging.info("=== INTERPLAY EXPORT START ===")
         prog = _show_progress_win(t("prog_title_interplay"))
@@ -1030,19 +1092,14 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
         engine.select_tracks_by_name(export_tracks)
         time.sleep(0.3)
 
-        video_end = None
-        try:
-            engine.select_all_clips_on_track(video_track)
-            time.sleep(0.3)
-            video_sel = engine.get_timeline_selection()
-            video_end = video_sel[1]
-            logging.info(f"  Interplay: Video: {video_sel[0]} -> {video_end}")
-        except Exception as e:
-            logging.error(f"  Interplay: Fehler Videospur '{video_track}': {e}")
-
-        if not video_end or video_end == "00:00:00:00.00":
-            logging.error("  Interplay: Video-Ende nicht ermittelt – überspringe Consolidate.")
-        else:
+        video_start, video_end = _video_ende_ermitteln(engine, video_track, label="Interplay: ")
+        if not video_end:
+            # 2.0.3: NICHT mehr ohne Consolidate weiterlaufen – das ergab eine
+            # unvollstaendige Sequenz mit "Export abgeschlossen" im Log.
+            raise ExportAbbruch(f"Video-Ende auf Spur '{video_track}' nicht ermittelt – "
+                                f"ohne Consolidate wird nicht exportiert.")
+        logging.info(f"  Interplay: Video: {video_start} -> {video_end}")
+        if True:
             # Pro Tools Selection State vorbereiten und absichern
             with _protools_selection_context(engine):
                 # Überhänge trimmen (vor dem Consolidate, damit der Clip danach ein physischer Haupt-Clip bleibt)
@@ -1062,9 +1119,8 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
                 # Consolidate
                 prog["update"](0.25, t("prog_consolidate"))
                 logging.info("  Interplay: Consolidate...")
-                engine.consolidate_clip()
-                _wait_for_consolidate_window_gone(timeout=_consolidate_timeout(in_time, video_end))
-                _wait_for_consolidated_files(session_dir, export_tracks, timeout=10)
+                _consolidate_mit_nachweis(engine, session_dir, export_tracks, in_time, video_end,
+                                          export_start_time, label="Interplay: ")
                 logging.info("  Interplay: Consolidate OK")
 
                 # Loudness-Korrektur
@@ -1295,6 +1351,11 @@ def run_interplay_export(export_tracks, settings, workspace_steps=17):
         logging.info("=== INTERPLAY EXPORT ENDE ===")
         return export_ok is not False   # False nur bei erkanntem Fehler
 
+    except ExportAbbruch as e:
+        logging.error(f"=== INTERPLAY EXPORT ABGEBROCHEN: {e} ===")
+        if prog: prog["update"](1.0, f"{t('alert_error')}: {e}")
+        _show_error("Interplay-Export abgebrochen", str(e).replace('"', "'"))
+        return False
     except Exception as e:
         logging.error(f"Interplay Export Fehler: {e}", exc_info=True)
         _reset_if_rpc_error(e)  # toten gRPC-Channel verwerfen → kein Zombie
@@ -1451,19 +1512,12 @@ def run_export(export_tracks, video_track=None, settings=None):
         # Auto-detect oder Fallback auf Parameter/Settings
         video_track = video_track or _detect_video_track(engine, settings)
         logging.info(f"Schritt 2: Video-Ende ermitteln (Spur: '{video_track}')...")
-        try:
-            engine.select_all_clips_on_track(video_track)
-            time.sleep(0.3)
-            video_sel = engine.get_timeline_selection()
-            video_end = video_sel[1]
-            logging.info(f"  Video: {video_sel[0]} -> {video_end}")
-        except Exception as e:
-            logging.error(f"  Fehler Videospur '{video_track}': {e}")
-            return
-
-        if not video_end or video_end == "00:00:00:00.00":
+        video_start, video_end = _video_ende_ermitteln(engine, video_track)
+        if not video_end:
             logging.error("  Video-Ende nicht ermittelt – Abbruch.")
+            _show_error("Export abgebrochen", f"Video-Ende auf Spur {video_track} nicht ermittelt.")
             return
+        logging.info(f"  Video: {video_start} -> {video_end}")
 
         in_time = settings.get("export_start_tc", "10:00:00:00") + ".00"
 
@@ -1484,15 +1538,12 @@ def run_export(export_tracks, video_track=None, settings=None):
 
             # ── 5. Consolidate (alle Spuren auf einmal) ──────────────────
             logging.info("Schritt 5: Consolidate...")
-            engine.consolidate_clip()
-            
             session_path = engine.session_path()
             session_dir = os.path.dirname(session_path)
             if os.path.basename(session_dir) == "Session File Backups":
                 session_dir = os.path.dirname(session_dir)
-
-            _wait_for_consolidate_window_gone(timeout=_consolidate_timeout(in_time, video_end))
-            _wait_for_consolidated_files(session_dir, export_tracks, timeout=10)
+            _consolidate_mit_nachweis(engine, session_dir, export_tracks, in_time, video_end,
+                                      export_start_time)
             logging.info("  Consolidate OK")
 
             # ── 7. Loudness-Korrektur (EBU R128) ─────────────────────
@@ -1553,6 +1604,10 @@ def run_export(export_tracks, video_track=None, settings=None):
 
         logging.info("=== EXPORT ABGESCHLOSSEN ===")
         logging.info(f"  {len(export_tracks)} Spuren konsolidiert und bereinigt.")
+
+    except ExportAbbruch as e:
+        logging.error(f"=== EXPORT ABGEBROCHEN: {e} ===")
+        _show_error("Export abgebrochen", str(e).replace('"', "'"))
 
     except Exception as e:
         logging.error(f"Export Fehler: {e}", exc_info=True)
