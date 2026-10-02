@@ -14,9 +14,11 @@ Entwickelt von Jens Rühl. Version 2.1.1.
 
 ## Download
 
-Fertige DMGs im [Release v2.0.2](https://github.com/ruehljens-creator/punchbuddy-protools/releases/tag/v2.0.2) —
-`PunchBuddy_v2.0.2_AppleSilicon.dmg` für M1/M2/M3/M4, `PunchBuddy_v2.0.2_Intel.dmg` für Intel-Macs.
-Beide bringen libusb und das Stream-Deck-Plugin mit, Homebrew wird nicht gebraucht.
+Fertiges DMG im [Release v2.1.1](https://github.com/ruehljens-creator/punchbuddy-protools/releases/tag/v2.1.1) —
+`PunchBuddy_v2.1.1_Intel.dmg` für Intel-Macs. Ein Apple-Silicon-DMG für 2.1.1 folgt; bis dahin gibt es für
+M1/M2/M3/M4 `PunchBuddy_v2.0.2_AppleSilicon.dmg` im [Release v2.0.2](https://github.com/ruehljens-creator/punchbuddy-protools/releases/tag/v2.0.2)
+(ohne die Neuerungen aus 2.1.0 und 2.1.1).
+Die DMGs bringen libusb und das Stream-Deck-Plugin mit, Homebrew wird nicht gebraucht.
 
 Die Apps sind ad-hoc signiert, nicht notarisiert: beim ersten Start **Rechtsklick → „Öffnen"**.
 
