@@ -78,13 +78,51 @@ def _mit_zwischenspitzen(ziel_sample_peak_db=-3.5):
 
 
 def _tp_voll(x):
-    from scipy.signal import resample_poly
-    return 20 * np.log10(np.max(np.abs(resample_poly(x, 4, 1, axis=0))))
+    """Referenz: BS.1770-Filter auf das ganze Signal, ohne Bloecke und Abkuerzungen."""
+    from scipy.signal import upfirdn
+    h, _ = loudness._tp_filter()
+    return 20 * np.log10(np.max(np.abs(upfirdn(h.astype(np.float64), x, up=4, axis=0))))
 
 
-def test_true_peak_blockweise_wie_am_stueck():
+def test_true_peak_schnell_wie_referenz():
     x = _mit_zwischenspitzen()
-    assert loudness._true_peak_db(x, block=5000) == pytest.approx(_tp_voll(x), abs=1e-6)
+    assert loudness._true_peak_db(x) == pytest.approx(_tp_voll(x), abs=1e-3)
+    mono = x[:, 0] * 0.3
+    assert loudness._true_peak_db(mono) == pytest.approx(_tp_voll(mono), abs=1e-3)
+
+
+def test_true_peak_nahe_an_resample_poly():
+    from scipy.signal import resample_poly
+    x = _mit_zwischenspitzen()
+    alt = 20 * np.log10(np.max(np.abs(resample_poly(x, 4, 1, axis=0))))
+    assert loudness._true_peak_db(x) == pytest.approx(alt, abs=0.2)
+
+
+def test_spitzen_je_sample_richtig_zugeordnet():
+    from scipy.signal import resample_poly
+    rng = np.random.default_rng(7)
+    x = rng.standard_normal((200_000, 2)) * 0.05
+    x[123_456] = 0.9                                   # eine deutliche Spitze
+    sp = loudness._spitzen_je_sample(x)
+    assert abs(int(np.argmax(sp)) - 123_456) <= 1
+    # unabhaengige Kontrolle: Spitzen je Sample aus resample_poly (nullphasig);
+    # die beste Uebereinstimmung muss ohne Verschiebung liegen
+    up = np.abs(resample_poly(x, 4, 1, axis=0)).max(axis=1).reshape(-1, 4).max(axis=1)
+    ref = np.maximum(up, np.concatenate(([0.0], up[:-1])))
+    mitte = slice(1000, -1000)
+    fehler = {k: float(np.mean(np.abs(np.roll(sp, k)[mitte] - ref[mitte]))) for k in (-2, -1, 0, 1, 2)}
+    assert min(fehler, key=fehler.get) == 0
+    assert sp[123_456] == pytest.approx(ref[123_456], rel=0.03)
+
+
+def test_spitzen_ausgelassene_bloecke_bleiben_unter_grenze():
+    x = _mit_zwischenspitzen(-1.0)
+    grenze = 0.3
+    sp_schnell = loudness._spitzen_je_sample(x, unter=grenze)
+    sp_voll = loudness._spitzen_je_sample(x)
+    ueber = sp_voll > grenze
+    np.testing.assert_array_equal(sp_schnell[ueber], sp_voll[ueber])   # alles Relevante exakt
+    assert np.all(sp_schnell[~ueber] <= grenze)
 
 
 def test_true_peak_wird_eingehalten(tmp_path):
@@ -178,3 +216,31 @@ def test_verstaerkungskurve_spitze_am_dateianfang():
     g[3] = 0.5
     s = loudness._verstaerkungskurve(g, 96, 0.05)
     assert np.all(s <= g + 1e-12)
+
+
+# ── Lautheit (vektorisiert) gegen pyloudnorm ────────────────────────────────
+
+@pytest.mark.parametrize("signal", ["stereo", "mono", "leise_mit_pausen", "kurz"])
+def test_lautheit_wie_pyloudnorm(signal):
+    rng = np.random.default_rng(3)
+    if signal == "stereo":
+        x = rng.standard_normal((RATE * 20, 2)) * np.array([0.05, 0.02])
+    elif signal == "mono":
+        x = rng.standard_normal(RATE * 7 + 123) * 0.03
+    elif signal == "leise_mit_pausen":
+        x = rng.standard_normal((RATE * 30, 2)) * 0.05
+        x[RATE * 5:RATE * 15] *= 1e-4                        # Pausen unter dem Gate
+    else:
+        x = rng.standard_normal((int(RATE * 0.9), 2)) * 0.05
+    assert loudness._lautheit_lufs(x, RATE) == pytest.approx(_lufs(x), abs=1e-6)
+
+
+def test_lautheit_mit_langer_digitaler_stille_schnell_und_richtig():
+    import time
+    rng = np.random.default_rng(4)
+    x = np.zeros((RATE * 120, 2))
+    x[:RATE * 10] = rng.standard_normal((RATE * 10, 2)) * 0.05     # 10 s Ton, dann Stille
+    t = time.time()
+    wert = loudness._lautheit_lufs(x, RATE)
+    assert time.time() - t < 2.0
+    assert wert == pytest.approx(_lufs(x), abs=1e-6)

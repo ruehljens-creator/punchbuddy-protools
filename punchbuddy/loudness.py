@@ -10,26 +10,136 @@ from punchbuddy.i18n import t
 from punchbuddy.uikit import _dispatch_main, _show_progress_win
 
 
-def _true_peak_db(data, block=1 << 18, rand=64):
-    """True Peak in dBTP nach ITU-R BS.1770-4: 4-fach ueberabgetastet.
+# ITU-R BS.1770-4, Anhang 2: Interpolationsfilter der 4-fachen Ueberabtastung fuer
+# den True Peak (48 Taps = 4 Phasen zu je 12 Koeffizienten).
+_TP_PHASEN = (
+    (0.0017089843750, 0.0109863281250, -0.0196533203125, 0.0332031250000, -0.0594482421875,
+     0.1373291015625, 0.9721679687500, -0.1022949218750, 0.0476074218750, -0.0266113281250,
+     0.0148925781250, -0.0083007812500),
+    (-0.0291748046875, 0.0292968750000, -0.0517578125000, 0.0891113281250, -0.1665039062500,
+     0.4650878906250, 0.7797851562500, -0.2003173828125, 0.1015625000000, -0.0582275390625,
+     0.0330810546875, -0.0189208984375),
+    (-0.0189208984375, 0.0330810546875, -0.0582275390625, 0.1015625000000, -0.2003173828125,
+     0.7797851562500, 0.4650878906250, -0.1665039062500, 0.0891113281250, -0.0517578125000,
+     0.0292968750000, -0.0291748046875),
+    (-0.0083007812500, 0.0148925781250, -0.0266113281250, 0.0476074218750, -0.1022949218750,
+     0.9721679687500, 0.1373291015625, -0.0594482421875, 0.0332031250000, -0.0196533203125,
+     0.0109863281250, 0.0017089843750),
+)
+_TP_BLOCK = 1 << 16    # Samples je Block
+_TP_RAND = 16          # Ueberlappung; das Filter reicht 12 Samples weit
 
-    Der reine Sample-Peak uebersieht Spitzen zwischen den Samples (bis ~3 dB).
-    Blockweise, damit lange Beitraege nicht den vierfachen Speicher brauchen;
-    `rand` Samples Ueberlappung, damit das Filter an den Blockgrenzen stimmt.
+
+def _tp_filter():
+    """(Filter verschachtelt fuer upfirdn, groesste Ueberhoehung zwischen Samples ~2,03)."""
+    import numpy as np
+    ph = np.array(_TP_PHASEN, dtype=np.float32)
+    return ph.T.reshape(-1).copy(), float(np.abs(ph).sum(axis=1).max())
+
+
+def _bloecke(n):
+    return [(s, min(n, s + _TP_BLOCK)) for s in range(0, n, _TP_BLOCK)]
+
+
+def _parallel(fn, items):
+    """fn ueber items auf mehreren Kernen; numpy/scipy geben dabei den GIL frei."""
+    if len(items) < 2:
+        return [fn(i) for i in items]
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as ex:
+        return list(ex.map(fn, items))
+
+
+def _spitzen_block(x2d, a, b, h):
+    """Je Sample in [a, b): groesster ueberabgetasteter Betrag zwischen voriger und
+    naechster Probe, ueber alle Kanaele."""
+    import numpy as np
+    from scipy.signal import upfirdn
+    lo, hi = max(0, a - _TP_RAND), min(len(x2d), b + _TP_RAND)
+    up = np.abs(upfirdn(h, x2d[lo:hi].astype(np.float32), up=4, axis=0)).max(axis=1)
+    # upfirdn verzoegert um (48-1)/2 = 23,5 Werte: Sample s liegt bei 4*(s-lo)+23,5.
+    # Werte 4*(s-lo)+20 ... +27 decken s-1 bis s+1 ab.
+    base = 4 * (a - lo) + 20
+    q = up[base:base + 4 * (b - a + 1)].reshape(-1, 4).max(axis=1)
+    return np.maximum(q[:-1], q[1:])
+
+
+def _true_peak_db(data):
+    """True Peak in dBTP nach ITU-R BS.1770-4 (4-fach ueberabgetastet, Filter aus Anhang 2).
+
+    Schnell: Ein Block kann den True Peak nur bestimmen, wenn sein Sample-Peak mal der
+    groessten Ueberhoehung des Filters den hoechsten Sample-Peak uebersteigt; nur diese
+    Bloecke werden ueberabgetastet, parallel auf mehreren Kernen.
     """
     import numpy as np
-    from scipy.signal import resample_poly
+    x2d = data if data.ndim == 2 else data[:, None]
+    h, ueberhoehung = _tp_filter()
+    bloecke = _bloecke(len(x2d))
+    bm = [float(np.abs(x2d[a:b]).max()) for a, b in bloecke]
+    smax = max(bm, default=0.0)
+    if smax <= 0:
+        return -120.0
+    kandidaten = [bl for bl, m in zip(bloecke, bm) if m * ueberhoehung > smax]
+    peaks = _parallel(lambda bl: float(_spitzen_block(x2d, bl[0], bl[1], h).max()), kandidaten)
+    return float(20 * np.log10(max([smax] + peaks)))
 
-    n = len(data)
-    peak = 0.0
-    for start in range(0, n, block):
-        a = max(0, start - rand)
-        b = min(n, start + block + rand)
-        up = resample_poly(data[a:b], 4, 1, axis=0)
-        lo = (start - a) * 4
-        hi = lo + (min(n, start + block) - start) * 4
-        peak = max(peak, float(np.max(np.abs(up[lo:hi]))))
-    return 20 * np.log10(peak) if peak > 0 else -120.0
+
+def _lautheit_lufs(data, rate):
+    """Integrierte Lautheit nach ITU-R BS.1770-4 in LUFS.
+
+    Gleiche Filter (aus pyloudnorm.Meter) und gleiches Gating wie
+    pyloudnorm.Meter.integrated_loudness, aber vektorisiert (Summen ueber
+    kumulierte Quadrate statt Schleife je Block) und in Stuecken parallel.
+    """
+    import numpy as np
+    import pyloudnorm as pyln
+    from scipy.signal import lfilter
+
+    x2d = data if data.ndim == 2 else data[:, None]
+    meter = pyln.Meter(rate)
+    stufen = list(meter._filters.values())          # Hochregal, dann Hochpass
+    g = np.array([1.0, 1.0, 1.0, 1.41, 1.41])[:x2d.shape[1]]
+
+    n = len(x2d)
+    # Die Filter schwingen nach weniger als 1 s vollstaendig ein (Pole bei r ~ 0,995):
+    # Stuecke mit 1 s Vorlauf lassen sich deshalb parallel filtern, das Ergebnis ist
+    # bis auf Rundung gleich.
+    vorlauf = int(rate)
+    stueck = max(vorlauf * 10, -(-n // 8))
+    auftraege = [(i, a, min(n, a + stueck)) for i in range(x2d.shape[1]) for a in range(0, n, stueck)]
+    quadrate = np.empty((n, x2d.shape[1]), dtype=np.float64)
+
+    def filtern(auftrag):
+        i, a, b = auftrag
+        v = max(0, a - vorlauf)
+        y = np.array(x2d[v:b, i], dtype=np.float64)        # Kopie, Original bleibt
+        # Gegen denormale Zahlen: in digitaler Stille (z. B. bis zum Videoende aufgefuellt)
+        # klingen die IIR-Filter in winzige Werte aus, die auf Intel-CPUs bis zu 20-mal
+        # langsamer rechnen. Ein Teppich von +-1e-20 (etwa -400 dBFS, faellt unter das
+        # Gate) haelt die Werte im normalen Zahlenbereich.
+        y[(v % 2)::2] += 1e-20
+        y[1 - (v % 2)::2] -= 1e-20
+        for f in stufen:
+            y = f.passband_gain * lfilter(f.b, f.a, y)
+        quadrate[a:b, i] = y[a - v:] ** 2
+
+    _parallel(filtern, auftraege)
+    cs = [np.concatenate(([0.0], np.cumsum(quadrate[:, i]))) for i in range(x2d.shape[1])]
+    t_g, step = meter.block_size, 1.0 - meter.overlap
+    anzahl = int(np.round(((n / rate - t_g) / (t_g * step)))) + 1
+    j = np.arange(anzahl)
+    lo = np.minimum((t_g * (j * step) * rate).astype(np.int64), n)
+    hi = np.minimum((t_g * (j * step + 1) * rate).astype(np.int64), n)
+    z = np.array([(c[hi] - c[lo]) / (t_g * rate) for c in cs])
+    with np.errstate(divide="ignore", invalid="ignore"):
+        lj = -0.691 + 10.0 * np.log10((g[:, None] * z).sum(axis=0))
+        auswahl = lj >= -70.0
+        if not auswahl.any():
+            return float("-inf")
+        relativ = -0.691 + 10.0 * np.log10((g * z[:, auswahl].mean(axis=1)).sum()) - 10.0
+        auswahl = (lj > relativ) & (lj > -70.0)
+        mittel = np.nan_to_num(z[:, auswahl].mean(axis=1)) if auswahl.any() else np.zeros(len(g))
+        return float(-0.691 + 10.0 * np.log10((g * mittel).sum()))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,29 +154,30 @@ LAUTHEIT_TOLERANZ_LU = 0.1    # erlaubte Abweichung der Lautheit vom Ziel
 TRUE_PEAK_TOLERANZ_DB = 0.1   # erlaubte Ueberschreitung der Spitzengrenze
 
 
-def _spitzen_je_sample(data, block=1 << 18, rand=64):
+def _spitzen_je_sample(data, unter=None):
     """Groesster Betrag je Sample, 4-fach ueberabgetastet, inkl. der Zwischenwerte
     zum vorigen und naechsten Sample, ueber alle Kanaele (float32).
 
     Einmal messen, dann fuer jeden Gain nur skalieren. Kanaele zusammen, damit
     beide gleich begrenzt werden und das Stereobild bleibt.
+    `unter`: Bloecke, die selbst ueberhoeht nicht ueber diesen Wert kommen, werden
+    nicht ueberabgetastet (dort stehen die Sample-Peaks) – sie loesen nie aus.
     """
     import numpy as np
-    from scipy.signal import resample_poly
-
     x2d = data if data.ndim == 2 else data[:, None]
-    n = len(x2d)
-    out = np.empty(n, dtype=np.float32)
-    for start in range(0, n, block):
-        a = max(0, start - rand)
-        b = min(n, start + block + rand)
-        stop = min(n, start + block)
-        up = np.abs(resample_poly(x2d[a:b], 4, 1, axis=0)).max(axis=1)
-        lo = (start - a) * 4
-        # je Sample die vier Werte bis zum naechsten Sample, dazu die des vorigen
-        q = up[lo:lo + (stop - start) * 4].reshape(-1, 4).max(axis=1)
-        vorher = up[lo - 4:lo].max() if lo >= 4 else 0.0
-        out[start:stop] = np.maximum(q, np.concatenate(([vorher], q[:-1])))
+    h, ueberhoehung = _tp_filter()
+    out = np.empty(len(x2d), dtype=np.float32)
+    noetig = []
+    for a, b in _bloecke(len(x2d)):
+        sample = np.abs(x2d[a:b]).max(axis=1)
+        if unter is not None and float(sample.max()) * ueberhoehung <= unter:
+            out[a:b] = sample
+        else:
+            noetig.append((a, b))
+
+    def rechnen(bl):
+        out[bl[0]:bl[1]] = _spitzen_block(x2d, bl[0], bl[1], h)
+    _parallel(rechnen, noetig)
     return out
 
 
@@ -111,9 +222,9 @@ def _true_peak_limiter(x, rate, max_truepeak, spitzen=None):
     """
     import numpy as np
 
-    if spitzen is None:
-        spitzen = _spitzen_je_sample(x)
     ceiling = 10 ** (max_truepeak / 20.0)
+    if spitzen is None:
+        spitzen = _spitzen_je_sample(x, unter=ceiling)
     idx = np.nonzero(spitzen > ceiling)[0]
     if len(idx) == 0:
         return x, 0.0
@@ -145,20 +256,26 @@ def _true_peak_limiter(x, rate, max_truepeak, spitzen=None):
     return (y if x.ndim == 2 else y[:, 0]), gr_db
 
 
-def _auf_ziel_mit_limiter(data, rate, meter, gain_db, target_lufs, max_truepeak, spitzen=None):
+def _auf_ziel_mit_limiter(data, rate, gain_db, target_lufs, max_truepeak, spitzen=None):
     """Gain auf die Ziel-Lautheit, Spitzen mit dem True-Peak-Limiter begrenzen.
 
     Der Limiter nimmt etwas Lautheit weg; deshalb nachstellen, bis die Lautheit
     hoechstens LAUTHEIT_TOLERANZ_LU vom Ziel abweicht (bis zu drei Durchgaenge).
-    `spitzen`: _spitzen_je_sample(data), falls schon gemessen.
+    `spitzen`: _spitzen_je_sample(data) vollstaendig gemessen, sonst wird nur gemessen,
+    was die Grenze erreichen kann.
     Gibt (Signal, Gain dB, groesste Begrenzung dB, Lautheit LUFS, True Peak dBTP) zurueck.
     """
-    if spitzen is None:
-        spitzen = _spitzen_je_sample(data)
+    ceiling = 10 ** (max_truepeak / 20.0)
+    reserve = 10 ** (1.0 / 20.0)    # Nachstellen hebt den Gain selten um mehr als 1 dB
+    gilt_bis = float("inf") if spitzen is not None else 0.0
     for versuch in range(3):
         faktor = 10 ** (gain_db / 20.0)
+        if faktor > gilt_bis:
+            # nur Bloecke ueberabtasten, die bei diesem Gain (+1 dB) die Grenze erreichen koennen
+            gilt_bis = faktor * reserve
+            spitzen = _spitzen_je_sample(data, unter=ceiling / gilt_bis)
         out, gr_db = _true_peak_limiter(data * faktor, rate, max_truepeak, spitzen * faktor)
-        lufs = meter.integrated_loudness(out)
+        lufs = _lautheit_lufs(out, rate)
         if abs(target_lufs - lufs) <= LAUTHEIT_TOLERANZ_LU or versuch == 2:
             break
         gain_db += target_lufs - lufs
@@ -191,7 +308,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     _prog(0.05, t("prog_track_search").format(track_name))
     try:
         import soundfile as sf
-        import pyloudnorm as pyln
+        import pyloudnorm  # noqa: F401 – nur pruefen, ob vorhanden (Filter fuer _lautheit_lufs)
         import numpy as np
     except ImportError as e:
         logging.error(f"Normalisierung: fehlende Bibliothek: {e}")
@@ -251,8 +368,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
 
     # Lautheit messen
     _prog(0.35, t("prog_track_measure").format(target_name))
-    meter = pyln.Meter(rate)
-    current_lufs = meter.integrated_loudness(data)
+    current_lufs = _lautheit_lufs(data, rate)
     logging.info(f"  Aktuelle Lautheit: {current_lufs:.1f} LUFS (Ziel: {target_lufs} LUFS)")
 
     if current_lufs == float('-inf'):
@@ -270,8 +386,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
 
     # True Peak pruefen und limitieren. Einmal am Original messen; der True Peak
     # waechst linear mit dem Gain.
-    spitzen = _spitzen_je_sample(data)
-    original_peak_db = float(20 * np.log10(spitzen.max())) if spitzen.max() > 0 else -120.0
+    original_peak_db = _true_peak_db(data)
     peak_db = original_peak_db + gain_db
     logging.info(f"  True Peak nach Gain: {peak_db:.1f} dBTP (Max: {max_truepeak} dBTP)")
 
@@ -280,7 +395,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
         # True-Peak-Limiter: nur die Spitzen werden begrenzt, die Lautheit bleibt
         # beim Ziel (frueher wurde die ganze Spur abgesenkt).
         normalized, gain_db, limiter_db, final_lufs_val, final_peak_db = _auf_ziel_mit_limiter(
-            data, rate, meter, gain_db, target_lufs, max_truepeak, spitzen)
+            data, rate, gain_db, target_lufs, max_truepeak)
         logging.info(f"  True Peak Limiter: hoechstens {limiter_db:.1f} dB Begrenzung, Gain {gain_db:+.1f} dB")
     else:
         logging.info("  True Peak OK – kein Limiting noetig")
