@@ -98,10 +98,14 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     else:
         logging.info(f"  True Peak OK – kein Limiting noetig")
 
-    # Datei ueberschreiben
+    # Datei ueberschreiben – immer 24 bit (Abgabeformat 24 bit / 48 kHz).
+    # Ohne subtype schreibt soundfile PCM_16. Die Samplerate bleibt die der Session,
+    # sonst passt die Datei nicht mehr zur Session.
+    if rate != 48000:
+        logging.warning(f"  Samplerate {rate} Hz statt 48000 Hz – Abgabeformat ist 24 bit / 48 kHz")
     _prog(0.70, t("prog_track_write").format(target_name))
-    sf.write(target_file, normalized, rate)
-    logging.info(f"  Datei ueberschrieben: {target_name}")
+    sf.write(target_file, normalized, rate, subtype="PCM_24")
+    logging.info(f"  Datei ueberschrieben: {target_name} (24 bit)")
 
     # ── Loudness Correction Metadata schreiben ───────────────────────
     final_peak = np.max(np.abs(normalized))
@@ -130,6 +134,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             mf.write(f"  Datum:              {timestamp}\n")
             mf.write(f"  Quelldatei:         {target_name}\n")
             mf.write(f"  Sample-Rate:        {rate} Hz\n")
+            mf.write(f"  Format:             24 bit PCM\n")
             mf.write(f"  Kanaele:            {'Stereo' if data.ndim == 2 else 'Mono'}\n")
             mf.write(f"  Dauer:              {duration_min}:{duration_sec:05.2f}\n\n")
             mf.write("-" * 60 + "\n")
