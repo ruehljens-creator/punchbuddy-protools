@@ -215,19 +215,26 @@ class VocasterUSB:
                 return h
         return None
 
-    def _stop_intr_poller(self):
-        """Beendet den Interrupt-Poller-Thread sauber (für Retry nach Fehler)."""
+    def _stop_intr_poller(self) -> bool:
+        """Beendet den Interrupt-Poller-Thread sauber (für Retry nach Fehler und vor dem Trennen).
+
+        Rückgabe: True, wenn kein Poller mehr läuft. Der Thread steckt bis zu 500 ms in
+        libusb_interrupt_transfer; erst danach darf das Handle geschlossen werden.
+        """
         ev = getattr(self, "_intr_stop", None)
         th = getattr(self, "_intr_thread", None)
         if ev is not None:
             ev.set()
+        stopped = True
         if th is not None:
             try:
-                th.join(timeout=1.0)
+                th.join(timeout=2.0)
             except Exception:
                 pass
+            stopped = not th.is_alive()
         self._intr_thread = None
         self._intr_stop = None
+        return stopped
 
     def connect(self, stop_hub: bool = True) -> bool:
         """
@@ -301,6 +308,12 @@ class VocasterUSB:
         return True
 
     def disconnect(self):
+        # Erst den Poller anhalten: Schließt man das Handle, während der Thread noch in
+        # libusb_interrupt_transfer steckt, stürzt Python ab (SIGSEGV, beobachtet 02.10.2026).
+        if not self._stop_intr_poller():
+            logging.warning("Vocaster: Poller-Thread reagiert nicht – USB-Handle bleibt offen "
+                            "(lieber offen lassen als abstürzen).")
+            return
         if self._handle:
             self._lib.libusb_release_interface(self._handle, VENDOR_IFACE)
             self._lib.libusb_close(self._handle)
@@ -322,13 +335,14 @@ class VocasterUSB:
         import queue
         self._intr_queue = queue.Queue()
         self._intr_stop  = threading.Event()
+        stop, handle = self._intr_stop, self._handle   # lokal: _stop_intr_poller setzt die Attribute auf None
 
         def _poll():
-            while not self._intr_stop.is_set():
+            while not stop.is_set():
                 buf = ctypes.create_string_buffer(64)
                 transferred = ctypes.c_int(0)
                 ret = self._lib.libusb_interrupt_transfer(
-                    self._handle,
+                    handle,
                     ctypes.c_uint8(INTR_EP),
                     buf, ctypes.c_int(64),
                     ctypes.byref(transferred),
