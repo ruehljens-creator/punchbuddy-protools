@@ -32,6 +32,147 @@ def _true_peak_db(data, block=1 << 18, rand=64):
     return 20 * np.log10(peak) if peak > 0 else -120.0
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# True-Peak-Limiter (offline, mit Vorschau)
+# ─────────────────────────────────────────────────────────────────────────────
+LIMITER_LOOKAHEAD_S = 0.002   # Vorschau = Einschwingzeit der Begrenzung
+LIMITER_RELEASE_S = 0.100     # Rueckstellzeit nach einer Spitze
+# Grenze genau bei max_truepeak (Vorgabe Jens: -3). True Peak begrenzt auch den Sample-Peak.
+# Erlaubt sind je 0,1 dB Abweichung bei Spitzen und Lautheit (Vorgabe Jens).
+_LIMITER_BLOCK = 16           # Raster fuer die Rueckstellung (Samples)
+LAUTHEIT_TOLERANZ_LU = 0.1    # erlaubte Abweichung der Lautheit vom Ziel
+TRUE_PEAK_TOLERANZ_DB = 0.1   # erlaubte Ueberschreitung der Spitzengrenze
+
+
+def _spitzen_je_sample(data, block=1 << 18, rand=64):
+    """Groesster Betrag je Sample, 4-fach ueberabgetastet, inkl. der Zwischenwerte
+    zum vorigen und naechsten Sample, ueber alle Kanaele (float32).
+
+    Einmal messen, dann fuer jeden Gain nur skalieren. Kanaele zusammen, damit
+    beide gleich begrenzt werden und das Stereobild bleibt.
+    """
+    import numpy as np
+    from scipy.signal import resample_poly
+
+    x2d = data if data.ndim == 2 else data[:, None]
+    n = len(x2d)
+    out = np.empty(n, dtype=np.float32)
+    for start in range(0, n, block):
+        a = max(0, start - rand)
+        b = min(n, start + block + rand)
+        stop = min(n, start + block)
+        up = np.abs(resample_poly(x2d[a:b], 4, 1, axis=0)).max(axis=1)
+        lo = (start - a) * 4
+        # je Sample die vier Werte bis zum naechsten Sample, dazu die des vorigen
+        q = up[lo:lo + (stop - start) * 4].reshape(-1, 4).max(axis=1)
+        vorher = up[lo - 4:lo].max() if lo >= 4 else 0.0
+        out[start:stop] = np.maximum(q, np.concatenate(([vorher], q[:-1])))
+    return out
+
+
+def _verstaerkungskurve(g, lookahead, alpha_block):
+    """Glatte Verstaerkung, die an jedem Sample hoechstens `g` ist.
+
+    1. Minimum ueber die naechsten `lookahead` Samples (Vorschau),
+    2. Rueckstellung exponentiell im Raster von _LIMITER_BLOCK Samples,
+    3. gleitender Mittelwert ueber `lookahead` Samples (sanfter Einsatz).
+    Da jedes Glied des Mittelwerts schon das Minimum ueber die Spitze enthaelt,
+    liegt das Ergebnis nie ueber `g`.
+    """
+    import numpy as np
+    from scipy.ndimage import minimum_filter1d, uniform_filter1d
+
+    m = minimum_filter1d(g, size=lookahead, origin=-(lookahead // 2), mode="constant", cval=1.0)
+    nb = -(-len(m) // _LIMITER_BLOCK)
+    mb = np.ones(nb * _LIMITER_BLOCK)
+    mb[:len(m)] = m
+    mb = mb.reshape(nb, _LIMITER_BLOCK).min(axis=1)
+    # Rueckstellung r[j] = min(mb[j], r[j-1] + (1 - r[j-1]) * alpha) ohne Schleife:
+    # mit d = 1 - r gilt d[j] = max(u[j], beta * d[j-1]), also
+    # d[j] = beta^j * max_{k<=j}(u[k] / beta^k) – im Logarithmus gerechnet.
+    u = 1.0 - mb
+    lb = np.log(1.0 - alpha_block)
+    k = np.arange(nb) * lb
+    with np.errstate(divide="ignore"):
+        d = np.exp(k + np.maximum.accumulate(np.log(u) - k))
+    rb = 1.0 - np.maximum(d, u)
+    r = np.repeat(rb, _LIMITER_BLOCK)[:len(m)]
+    # Vor dem Anfang gilt der erste Wert: steht eine Spitze in den ersten Samples,
+    # greift die Begrenzung dort sofort (keine Vorschau vor dem Dateianfang).
+    return uniform_filter1d(r, size=lookahead, origin=(lookahead - 1) // 2, mode="nearest")
+
+
+def _true_peak_limiter(x, rate, max_truepeak, spitzen=None):
+    """Begrenzt den True Peak auf `max_truepeak`.
+
+    `spitzen`: Ergebnis von _spitzen_je_sample(x), falls schon gemessen.
+    Gibt (Signal, groesste Begrenzung in dB) zurueck. Bearbeitet nur die
+    Bereiche um die Spitzen; der Rest bleibt bitgleich.
+    """
+    import numpy as np
+
+    if spitzen is None:
+        spitzen = _spitzen_je_sample(x)
+    ceiling = 10 ** (max_truepeak / 20.0)
+    idx = np.nonzero(spitzen > ceiling)[0]
+    if len(idx) == 0:
+        return x, 0.0
+    faktor = ceiling / spitzen[idx].astype(np.float64)
+
+    x2d = x if x.ndim == 2 else x[:, None]
+    n = len(x2d)
+    lookahead = max(2, int(round(LIMITER_LOOKAHEAD_S * rate)))
+    alpha_block = 1.0 - np.exp(-_LIMITER_BLOCK / (LIMITER_RELEASE_S * rate))
+    nachlauf = int(LIMITER_RELEASE_S * rate * np.log(1e5))  # Rest < 1e-5
+
+    # Bereiche um die Ueberschreitungen; ueberlappende zusammenfassen
+    anf = np.maximum(idx - 2 * lookahead, 0)
+    end = np.minimum(idx + lookahead + nachlauf, n)
+    neu_ab = np.concatenate(([True], anf[1:] > np.maximum.accumulate(end)[:-1]))
+    starts = anf[neu_ab]
+    stops = np.maximum.reduceat(end, np.nonzero(neu_ab)[0])
+
+    y = x2d.copy()
+    tiefste = 1.0
+    for a, b in zip(starts, stops):
+        g = np.ones(b - a)
+        lo, hi = np.searchsorted(idx, [a, b])
+        g[idx[lo:hi] - a] = faktor[lo:hi]
+        s = _verstaerkungskurve(g, lookahead, alpha_block)
+        y[a:b] *= s[:, None]
+        tiefste = min(tiefste, float(s.min()))
+    gr_db = -20 * np.log10(tiefste)
+    return (y if x.ndim == 2 else y[:, 0]), gr_db
+
+
+def _auf_ziel_mit_limiter(data, rate, meter, gain_db, target_lufs, max_truepeak, spitzen=None):
+    """Gain auf die Ziel-Lautheit, Spitzen mit dem True-Peak-Limiter begrenzen.
+
+    Der Limiter nimmt etwas Lautheit weg; deshalb nachstellen, bis die Lautheit
+    hoechstens LAUTHEIT_TOLERANZ_LU vom Ziel abweicht (bis zu drei Durchgaenge).
+    `spitzen`: _spitzen_je_sample(data), falls schon gemessen.
+    Gibt (Signal, Gain dB, groesste Begrenzung dB, Lautheit LUFS, True Peak dBTP) zurueck.
+    """
+    if spitzen is None:
+        spitzen = _spitzen_je_sample(data)
+    for versuch in range(3):
+        faktor = 10 ** (gain_db / 20.0)
+        out, gr_db = _true_peak_limiter(data * faktor, rate, max_truepeak, spitzen * faktor)
+        lufs = meter.integrated_loudness(out)
+        if abs(target_lufs - lufs) <= LAUTHEIT_TOLERANZ_LU or versuch == 2:
+            break
+        gain_db += target_lufs - lufs
+    # Absicherung: liegt der True Peak mehr als die Toleranz ueber der Grenze,
+    # statisch auf die Grenze absenken (sollte nicht vorkommen)
+    tp = _true_peak_db(out)
+    if tp > max_truepeak + TRUE_PEAK_TOLERANZ_DB:
+        logging.warning(f"  True Peak nach Limiter {tp - max_truepeak:.2f} dB zu hoch – statische Absenkung")
+        out = out * 10 ** ((max_truepeak - tp) / 20.0)
+        lufs -= tp - max_truepeak
+        tp = max_truepeak
+    return out, gain_db, gr_db, lufs, tp
+
+
 def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max_truepeak=-3.0, progress_cb=None):
     """
     Normalisiert die konsolidierte Audiodatei einer Spur nach EBU R128.
@@ -51,6 +192,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     try:
         import soundfile as sf
         import pyloudnorm as pyln
+        import numpy as np
     except ImportError as e:
         logging.error(f"Normalisierung: fehlende Bibliothek: {e}")
         logging.error("  pip3 install pyloudnorm soundfile")
@@ -96,7 +238,6 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     # Audio lesen
     _prog(0.15, t("prog_track_read").format(target_name))
     if paar:
-        import numpy as np
         data_l, rate = sf.read(paar[0])
         data_r, rate_r = sf.read(paar[1])
         if rate_r != rate or len(data_l) != len(data_r):
@@ -129,20 +270,20 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
 
     # True Peak pruefen und limitieren. Einmal am Original messen; der True Peak
     # waechst linear mit dem Gain.
-    original_peak_db = _true_peak_db(data)
+    spitzen = _spitzen_je_sample(data)
+    original_peak_db = float(20 * np.log10(spitzen.max())) if spitzen.max() > 0 else -120.0
     peak_db = original_peak_db + gain_db
     logging.info(f"  True Peak nach Gain: {peak_db:.1f} dBTP (Max: {max_truepeak} dBTP)")
 
+    limiter_db = 0.0
     if peak_db > max_truepeak:
-        # Limitieren: Gain so reduzieren dass True Peak eingehalten wird
-        reduction_db = peak_db - max_truepeak
-        reduction_linear = 10 ** (-reduction_db / 20.0)
-        normalized *= reduction_linear
-        final_lufs = current_lufs + gain_db - reduction_db
-        logging.info(f"  True Peak Limiter: -{reduction_db:.1f} dB angewendet")
-        logging.info(f"  Endgueltige Lautheit: {final_lufs:.1f} LUFS")
+        # True-Peak-Limiter: nur die Spitzen werden begrenzt, die Lautheit bleibt
+        # beim Ziel (frueher wurde die ganze Spur abgesenkt).
+        normalized, gain_db, limiter_db, final_lufs_val, final_peak_db = _auf_ziel_mit_limiter(
+            data, rate, meter, gain_db, target_lufs, max_truepeak, spitzen)
+        logging.info(f"  True Peak Limiter: hoechstens {limiter_db:.1f} dB Begrenzung, Gain {gain_db:+.1f} dB")
     else:
-        logging.info(f"  True Peak OK – kein Limiting noetig")
+        logging.info("  True Peak OK – kein Limiting noetig")
 
     # Datei ueberschreiben – immer 24 bit (Abgabeformat 24 bit / 48 kHz).
     # Ohne subtype schreibt soundfile PCM_16. Die Samplerate bleibt die der Session,
@@ -158,12 +299,9 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     logging.info(f"  Datei ueberschrieben: {quelle} (24 bit)")
 
     # ── Loudness Correction Metadata schreiben ───────────────────────
-    limiting_applied = peak_db > max_truepeak
-    final_peak_db = max_truepeak if limiting_applied else peak_db
-    if limiting_applied:
-        final_lufs_val = current_lufs + gain_db - (peak_db - max_truepeak)
-    else:
-        final_lufs_val = target_lufs
+    limiting_applied = limiter_db > 0
+    if not limiting_applied:
+        final_peak_db, final_lufs_val = peak_db, target_lufs
 
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -190,15 +328,17 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             mf.write(f"  Original Lautheit:  {current_lufs:.1f} LUFS\n")
             mf.write(f"  Ziel Lautheit:      {target_lufs:.1f} LUFS\n")
             mf.write(f"  Gain-Korrektur:     {gain_db:+.1f} dB\n\n")
-            mf.write(f"  Original True Peak: {original_peak_db:.1f} dB\n")
+            mf.write(f"  Original True Peak: {original_peak_db:.1f} dBTP\n")
             mf.write(f"  Max True Peak:      {max_truepeak:.1f} dB\n")
-            mf.write(f"  True Peak Limiter:  {'Ja (%.1f dB)' % (peak_db - max_truepeak) if limiting_applied else 'Nein'}\n\n")
+            mf.write(f"  True Peak Limiter:  {'Ja (hoechstens %.1f dB Begrenzung)' % limiter_db if limiting_applied else 'Nein'}\n\n")
             mf.write("-" * 60 + "\n")
             mf.write("  ERGEBNIS\n")
             mf.write("-" * 60 + "\n\n")
             mf.write(f"  Endgueltige Lautheit: {final_lufs_val:.1f} LUFS\n")
             mf.write(f"  Endgueltiger Peak:    {final_peak_db:.1f} dB TP\n")
-            mf.write(f"  Norm konform:         {'JA' if final_lufs_val >= target_lufs - 0.5 and final_peak_db <= max_truepeak else 'NEIN'}\n\n")
+            konform = (abs(final_lufs_val - target_lufs) <= LAUTHEIT_TOLERANZ_LU
+                       and final_peak_db <= max_truepeak + TRUE_PEAK_TOLERANZ_DB)
+            mf.write(f"  Norm konform:         {'JA' if konform else 'NEIN'} (Toleranz je 0,1 dB)\n\n")
             mf.write("=" * 60 + "\n")
         logging.info(f"  Metadata geschrieben: {meta_path}")
     except Exception as e:

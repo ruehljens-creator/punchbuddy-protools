@@ -96,7 +96,7 @@ def test_true_peak_wird_eingehalten(tmp_path):
 
     data, _ = sf.read(f)
     # Der Sample-Peak allein (-3,5 dBFS) hätte keine Begrenzung ausgelöst.
-    assert _tp_voll(data) <= -3.0 + 0.01
+    assert _tp_voll(data) <= -3.0 + 0.1
 
 
 def test_split_mono_paar_gemeinsam(tmp_path):
@@ -116,3 +116,65 @@ def test_split_mono_paar_gemeinsam(tmp_path):
     # beide Kanäle mit demselben Gain, als Stereopaar auf -23 LUFS
     assert np.std(nl) / np.std(links) == pytest.approx(np.std(nr) / np.std(rechts), rel=1e-3)
     assert _lufs(np.column_stack([nl, nr])) == pytest.approx(-23.0, abs=0.1)
+
+
+# ── True-Peak-Limiter ────────────────────────────────────────────────────────
+
+def _kurve_von_hand(g, lookahead, alpha_block):
+    """Langsame Vergleichsumsetzung von _verstaerkungskurve."""
+    n, block = len(g), loudness._LIMITER_BLOCK
+    m = np.array([min(g[i:i + lookahead]) for i in range(n)])
+    r, rb = 1.0, []
+    for j in range(0, n, block):
+        r = min(m[j:j + block].min(), r + (1.0 - r) * alpha_block)
+        rb.append(r)
+    r = np.repeat(rb, block)[:n]
+    rp = np.concatenate([np.full(lookahead - 1, r[0]), r])
+    return np.array([rp[i:i + lookahead].mean() for i in range(n)])
+
+
+def test_verstaerkungskurve_wie_von_hand_und_nie_ueber_bedarf():
+    rng = np.random.default_rng(5)
+    g = np.ones(3000)
+    stellen = rng.choice(3000, 25, replace=False)
+    g[stellen] = rng.uniform(0.3, 0.99, 25)
+    s = loudness._verstaerkungskurve(g, 96, 0.05)
+    np.testing.assert_allclose(s, _kurve_von_hand(g, 96, 0.05), atol=1e-12)
+    assert np.all(s <= g + 1e-12)
+
+
+def test_limiter_haelt_grenze_und_laesst_rest_unveraendert():
+    x = _mit_zwischenspitzen(-1.0) * 10 ** (8 / 20)   # deutlich ueber -3 dBTP
+    y, gr_db = loudness._true_peak_limiter(x, RATE, -3.0)
+    assert _tp_voll(y) <= -3.0 + 0.01   # erlaubt 0,1 dB; tatsaechlich Tausendstel
+    assert gr_db > 0
+    # vor der ersten Spitze (1 s) bleibt alles bitgleich
+    np.testing.assert_array_equal(y[:RATE - 2000], x[:RATE - 2000])
+
+
+def test_limiter_mono():
+    x = _mit_zwischenspitzen(-1.0)[:, 0] * 10 ** (8 / 20)
+    y, _ = loudness._true_peak_limiter(x, RATE, -3.0)
+    assert y.ndim == 1
+    assert _tp_voll(y) <= -3.0 + 0.01
+
+
+def test_lautheit_bleibt_beim_ziel_mit_limiter(tmp_path):
+    d = _session(tmp_path)
+    f = os.path.join(d, "Audio Files", "ST_02.wav")
+    sf.write(f, _mit_zwischenspitzen(-3.5), RATE, subtype="PCM_24")
+
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0)
+
+    data, _ = sf.read(f)
+    assert _tp_voll(data) <= -3.0 + 0.01
+    assert _lufs(data) == pytest.approx(-23.0, abs=0.1)
+    meta = open(os.path.join(d, "Loudness Correction Metadata.txt"), encoding="utf-8").read()
+    assert "Norm konform:         JA" in meta
+
+
+def test_verstaerkungskurve_spitze_am_dateianfang():
+    g = np.ones(500)
+    g[3] = 0.5
+    s = loudness._verstaerkungskurve(g, 96, 0.05)
+    assert np.all(s <= g + 1e-12)
