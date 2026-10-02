@@ -97,3 +97,22 @@ def test_true_peak_wird_eingehalten(tmp_path):
     data, _ = sf.read(f)
     # Der Sample-Peak allein (-3,5 dBFS) hätte keine Begrenzung ausgelöst.
     assert _tp_voll(data) <= -3.0 + 0.01
+
+
+def test_split_mono_paar_gemeinsam(tmp_path):
+    d = _session(tmp_path)
+    links = _rauschen(kanaele=1, seed=2)
+    rechts = _rauschen(kanaele=1, seed=3)
+    fl = os.path.join(d, "Audio Files", "ST_03.L.wav")
+    fr = os.path.join(d, "Audio Files", "ST_03.R.wav")
+    sf.write(fl, links, RATE, subtype="PCM_24")
+    sf.write(fr, rechts, RATE, subtype="PCM_24")
+
+    loudness.normalize_track(_FakeEngine(), d, "ST", -23.0, -3.0)
+
+    nl, _ = sf.read(fl)
+    nr, _ = sf.read(fr)
+    assert sf.info(fl).subtype == sf.info(fr).subtype == "PCM_24"
+    # beide Kanäle mit demselben Gain, als Stereopaar auf -23 LUFS
+    assert np.std(nl) / np.std(links) == pytest.approx(np.std(nr) / np.std(rechts), rel=1e-3)
+    assert _lufs(np.column_stack([nl, nr])) == pytest.approx(-23.0, abs=0.1)

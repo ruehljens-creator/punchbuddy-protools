@@ -80,9 +80,32 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     target_name = st_files[0][3]
     logging.info(f"  Datei: {target_name} ({st_files[0][1] / 1024 / 1024:.1f} MB)")
 
+    # Split-Mono (Session nicht interleaved): Pro Tools legt je Kanal eine Datei an,
+    # z. B. ST_02.L.wav und ST_02.R.wav. Beide gehoeren zusammen: gemeinsam messen,
+    # gleicher Gain, beide schreiben. Sonst wird nur ein Kanal korrigiert.
+    paar = None
+    stamm, kanal = os.path.splitext(os.path.splitext(target_name)[0])
+    if kanal in (".L", ".R"):
+        ext = os.path.splitext(target_name)[1]
+        links = os.path.join(audio_dir, stamm + ".L" + ext)
+        rechts = os.path.join(audio_dir, stamm + ".R" + ext)
+        if os.path.exists(links) and os.path.exists(rechts):
+            paar = (links, rechts)
+    quelle = f"{stamm}.L{ext} + {stamm}.R{ext}" if paar else target_name
+
     # Audio lesen
     _prog(0.15, t("prog_track_read").format(target_name))
-    data, rate = sf.read(target_file)
+    if paar:
+        import numpy as np
+        data_l, rate = sf.read(paar[0])
+        data_r, rate_r = sf.read(paar[1])
+        if rate_r != rate or len(data_l) != len(data_r):
+            logging.error(f"  Split-Mono-Paar {quelle} passt nicht zusammen – Normalisierung uebersprungen.")
+            return
+        data = np.column_stack([data_l, data_r])
+        logging.info(f"  Split-Mono-Paar: {quelle}")
+    else:
+        data, rate = sf.read(target_file)
     logging.info(f"  Sample-Rate: {rate} Hz, Dauer: {len(data)/rate:.1f}s, Kanaele: {data.ndim}")
 
     # Lautheit messen
@@ -127,8 +150,12 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
     if rate != 48000:
         logging.warning(f"  Samplerate {rate} Hz statt 48000 Hz – Abgabeformat ist 24 bit / 48 kHz")
     _prog(0.70, t("prog_track_write").format(target_name))
-    sf.write(target_file, normalized, rate, subtype="PCM_24")
-    logging.info(f"  Datei ueberschrieben: {target_name} (24 bit)")
+    if paar:
+        sf.write(paar[0], normalized[:, 0], rate, subtype="PCM_24")
+        sf.write(paar[1], normalized[:, 1], rate, subtype="PCM_24")
+    else:
+        sf.write(target_file, normalized, rate, subtype="PCM_24")
+    logging.info(f"  Datei ueberschrieben: {quelle} (24 bit)")
 
     # ── Loudness Correction Metadata schreiben ───────────────────────
     limiting_applied = peak_db > max_truepeak
@@ -152,7 +179,7 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             mf.write("  EBU R128 / ITU-R BS.1770\n")
             mf.write("=" * 60 + "\n\n")
             mf.write(f"  Datum:              {timestamp}\n")
-            mf.write(f"  Quelldatei:         {target_name}\n")
+            mf.write(f"  Quelldatei:         {quelle}\n")
             mf.write(f"  Sample-Rate:        {rate} Hz\n")
             mf.write("  Format:             24 bit PCM\n")
             mf.write(f"  Kanaele:            {'Stereo' if data.ndim == 2 else 'Mono'}\n")
@@ -189,8 +216,9 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             logging.warning(f"  Pro Tools Audio-Dateien Refresh fehlgeschlagen (wird fortgesetzt): {re}")
         time.sleep(3.0)  # PT braucht Zeit um die Datei neu einzulesen
 
-        # Clip-Name = Dateiname ohne Extension (z.B. ST_02.wav -> ST_02)
-        clip_name = os.path.splitext(target_name)[0]
+        # Clip-Name = Dateiname ohne Extension (z.B. ST_02.wav -> ST_02),
+        # bei Split-Mono ohne Kanalendung (ST_02.L.wav -> ST_02)
+        clip_name = stamm if paar else os.path.splitext(target_name)[0]
 
         # Bereits umbenannt? (verhindert ST_02-loudness -> ST_02-loudness-loudness)
         if "-loudness" in clip_name:
@@ -257,7 +285,11 @@ def normalize_track(engine, session_dir, track_name="ST", target_lufs=-23.0, max
             # Datei auf der Festplatte nicht um (besonders bei Stereo Interleaved).
             # Wir pruefen ob die Datei noch den alten Namen hat und benennen sie
             # manuell um, damit PT den korrekten Namen auf der Spur anzeigt.
-            if renamed and os.path.exists(target_file):
+            # Nicht bei Split-Mono: dort muessten beide Dateien zusammen umbenannt
+            # werden; das ist mit Pro Tools nicht erprobt.
+            if renamed and paar:
+                logging.info("  Split-Mono: Dateien werden nicht von Hand umbenannt.")
+            elif renamed and os.path.exists(target_file):
                 new_file = os.path.join(os.path.dirname(target_file),
                                         new_name + os.path.splitext(target_name)[1])
                 if not os.path.exists(new_file):
