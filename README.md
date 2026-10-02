@@ -10,7 +10,7 @@ Steuerung von Pro Tools über **PTSL** (Pro Tools Scripting Layer, `py-ptsl`),
 ergänzt um CGEvent-Tastendrücke für die wenigen Funktionen, die PTSL nicht
 anbietet.
 
-Entwickelt von Jens Rühl. Version 2.1.0.
+Entwickelt von Jens Rühl. Version 2.1.1.
 
 ## Download
 
