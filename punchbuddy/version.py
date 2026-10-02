@@ -10,4 +10,4 @@ Wird verwendet von: Startup-Log, Menüleisten-Tooltip, Diagnose-Report
 Beim Release zusätzlich per Git-Tag markieren:  git tag vX.Y.Z && git push origin vX.Y.Z
 """
 
-__version__ = "2.0.2"
+__version__ = "2.1.0"
